@@ -650,6 +650,32 @@ function initFormListeners() {
       fileReader.readAsText(e.target.files[0]);
     }
   });
+
+  // Download CSV template
+  document.getElementById('btn-download-csv-template').addEventListener('click', () => {
+    const csvContent = "Fecha;Kilometraje;Litros;Costo;Tipo;Notas\n" +
+                       "2026-05-15;45150;15.2;16500;Turismo;Carga inicial\n" +
+                       "2026-05-28;45360;14.8;16100;Ciudad;Ruta urbana\n" +
+                       "2026-06-10;45610;16.5;18000;Autopista;Viaje a Vina";
+    const dataUri = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csvContent); // BOM for Excel compatibility
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', 'goldwing_gas_plantilla.csv');
+    linkElement.click();
+  });
+
+  // Import CSV data
+  document.getElementById('input-import-csv').addEventListener('change', (e) => {
+    const fileReader = new FileReader();
+    fileReader.onload = function(event) {
+      const text = event.target.result;
+      parseAndImportCSV(text);
+    };
+    if (e.target.files[0]) {
+      fileReader.readAsText(e.target.files[0], 'UTF-8');
+    }
+  });
   
   // Clear/Reset Data
   document.getElementById('btn-reset-data').addEventListener('click', () => {
@@ -1159,4 +1185,127 @@ function parseMaintOcrResults(text) {
   // Show alert
   alertResult.style.display = 'flex';
   alertText.innerHTML = `<strong>Lectura de Nota Finalizada:</strong><br>` + alertContent.join('<br>') + `<br><small class="text-muted" style="display:block; margin-top:5px;">Por favor, revisa y edita el texto copiado abajo si el mecánico tiene letra difícil.</small>`;
+}
+
+// Parse and import CSV spreadsheet files from Excel
+function parseAndImportCSV(text) {
+  try {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length < 2) {
+      alert("El archivo CSV está vacío o no contiene registros.");
+      return;
+    }
+    
+    // Detect separator: comma or semicolon
+    const header = lines[0];
+    let sep = ';';
+    if (header.includes(',')) {
+      if (header.includes(';')) {
+        sep = ';';
+      } else {
+        sep = ',';
+      }
+    }
+    
+    const headers = header.split(sep).map(h => h.trim().toLowerCase().replace(/\"/g, ''));
+    console.log("CSV Headers detected:", headers);
+    
+    // Map header indices
+    let dateIdx = headers.findIndex(h => h.includes('fech') || h.includes('date'));
+    let odoIdx = headers.findIndex(h => h.includes('kilomet') || h.includes('odo') || h.includes('km'));
+    let litersIdx = headers.findIndex(h => h.includes('litr') || h.includes('cant') || h.includes('vol'));
+    let costIdx = headers.findIndex(h => h.includes('cost') || h.includes('tot') || h.includes('prec') || h.includes('val'));
+    let typeIdx = headers.findIndex(h => h.includes('tipo') || h.includes('modo') || h.includes('style'));
+    let notesIdx = headers.findIndex(h => h.includes('not') || h.includes('coment') || h.includes('detall'));
+    
+    if (dateIdx === -1 || odoIdx === -1 || litersIdx === -1 || costIdx === -1) {
+      alert("No pudimos encontrar todas las columnas requeridas (Fecha, Kilometraje, Litros, Costo). Verifica las cabeceras del CSV.");
+      return;
+    }
+    
+    let importedCount = 0;
+    let duplicateCount = 0;
+    let errorCount = 0;
+    
+    const existingOdos = new Set(state.fuelLogs.map(l => parseInt(l.odometer)));
+    
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(sep).map(c => c.trim().replace(/\"/g, ''));
+      if (row.length < Math.max(dateIdx, odoIdx, litersIdx, costIdx) + 1) {
+        errorCount++;
+        continue;
+      }
+      
+      const rawDate = row[dateIdx];
+      const rawOdo = row[odoIdx];
+      const rawLiters = row[litersIdx];
+      const rawCost = row[costIdx];
+      
+      let parsedDate = '';
+      if (rawDate) {
+        const dateMatch = rawDate.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/);
+        if (dateMatch) {
+          parsedDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
+        } else {
+          const dateMatch2 = rawDate.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{2,4})/);
+          if (dateMatch2) {
+            let day = dateMatch2[1];
+            let month = dateMatch2[2];
+            let year = dateMatch2[3];
+            if (year.length === 2) year = '20' + year;
+            parsedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          }
+        }
+      }
+      
+      const odometer = parseInt(rawOdo);
+      const liters = parseFloat(rawLiters.replace(',', '.'));
+      const cost = parseInt(rawCost.replace(/[\$\s\.]/g, ''));
+      
+      if (!parsedDate || isNaN(odometer) || isNaN(liters) || isNaN(cost)) {
+        errorCount++;
+        continue;
+      }
+      
+      if (existingOdos.has(odometer)) {
+        duplicateCount++;
+        continue;
+      }
+      
+      const type = typeIdx !== -1 && row[typeIdx] ? row[typeIdx] : 'Turismo';
+      const notes = notesIdx !== -1 && row[notesIdx] ? row[notesIdx] : '';
+      
+      state.fuelLogs.push({
+        date: parsedDate,
+        odometer: odometer,
+        liters: liters,
+        cost: cost,
+        type: type,
+        station: '',
+        notes: notes,
+        image: ''
+      });
+      
+      existingOdos.add(odometer);
+      importedCount++;
+    }
+    
+    if (importedCount > 0) {
+      saveData();
+      updateUI();
+    }
+    
+    let summaryMsg = `¡Importación finalizada!\n` +
+                     `- Se agregaron con éxito: ${importedCount} registros.\n`;
+    if (duplicateCount > 0) {
+      summaryMsg += `- Se omitieron (duplicados de odómetro): ${duplicateCount} registros.\n`;
+    }
+    if (errorCount > 0) {
+      summaryMsg += `- Filas con errores/vacías omitidas: ${errorCount}.\n`;
+    }
+    alert(summaryMsg);
+    
+  } catch (err) {
+    alert("Error al procesar el archivo CSV: " + err.message);
+  }
 }

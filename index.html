@@ -427,6 +427,21 @@
               </div>
             </div>
             
+            <div style="margin-top: 20px;">
+              <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 5px; color: var(--accent-gold);">Importar Planilla Excel (CSV)</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Puedes importar tu planilla histórica de cargas guardándola como archivo CSV (separado por comas o punto y coma) con las columnas: <strong>Fecha, Kilometraje, Litros, Costo</strong>.</p>
+              <div class="backup-actions">
+                <button class="btn btn-secondary btn-sm" id="btn-download-csv-template" type="button">
+                  <i class="fa-solid fa-file-csv"></i> Descargar Plantilla CSV
+                </button>
+                
+                <div class="file-upload-btn btn btn-neutral btn-sm">
+                  <i class="fa-solid fa-file-import"></i> Importar CSV
+                  <input type="file" id="input-import-csv" accept=".csv">
+                </div>
+              </div>
+            </div>
+            
             <hr>
             <h3 class="text-danger">Zona Peligrosa</h3>
             <p class="text-muted">Esto borrará de forma permanente todo el historial de bencina y mantenimientos guardado en esta máquina.</p>
