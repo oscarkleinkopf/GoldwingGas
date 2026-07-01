@@ -1021,3 +1021,70 @@ hr {
 .viewer-content {
   max-width: 650px;
 }
+
+/* Troubleshooting Guide (Guía de Panas) Layout */
+.panas-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.panas-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.pana-item {
+  border-left: 5px solid var(--accent-red);
+}
+
+.pana-item h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pana-item p {
+  font-size: 0.85rem;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.pana-item strong {
+  color: var(--accent-gold);
+}
+
+.fix-box {
+  background-color: rgba(0, 0, 0, 0.25);
+  border: 1px solid #1c3d27;
+  border-left: 3px solid var(--accent-green);
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.fix-title {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--accent-green);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  letter-spacing: 0.5px;
+}
+
+.fix-box p {
+  margin-bottom: 0;
+  color: var(--text-main);
+  font-size: 0.82rem;
+}
+
+/* Border status classes for preventative maintenance */
+.border-green { border-color: var(--accent-green); }
+.border-yellow { border-color: var(--accent-gold); }
+.border-red { border-color: var(--accent-red); }
+

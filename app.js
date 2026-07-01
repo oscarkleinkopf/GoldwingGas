@@ -371,6 +371,7 @@ function renderMaintLogsTable() {
     const originalIndex = state.maintLogs.indexOf(log);
     const dateFormatted = new Date(log.date).toLocaleDateString('es-ES', { timeZone: 'UTC' });
     const costDisplay = log.cost ? `${state.settings.currency}${parseInt(log.cost).toLocaleString()}` : '<span class="text-muted">-</span>';
+    const hasPhoto = log.image ? `<button class="ticket-attachment-btn" onclick="viewMaintPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> Ver nota</button>` : '<span class="text-muted">-</span>';
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -379,6 +380,7 @@ function renderMaintLogsTable() {
       <td><strong>${log.odometer.toLocaleString()} km</strong></td>
       <td>${costDisplay}</td>
       <td><p style="margin: 0; max-width: 250px; font-size: 0.85rem;">${log.notes || '-'}</p></td>
+      <td>${hasPhoto}</td>
       <td>
         <button class="btn-icon" onclick="editMaintLog(${originalIndex})" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
         <button class="btn-icon btn-icon-danger" onclick="deleteMaintLog(${originalIndex})" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
@@ -542,6 +544,14 @@ function initFormListeners() {
       btn.addEventListener('click', () => {
         document.getElementById('form-maint-log').reset();
         document.getElementById('maint-log-index').value = "-1";
+        document.getElementById('maint-image-data').value = "";
+        
+        // Hide OCR preview
+        document.getElementById('ocr-maint-preview-container').style.display = 'none';
+        document.getElementById('ocr-maint-preview-img').src = '';
+        document.getElementById('ocr-maint-results-alert').style.display = 'none';
+        document.getElementById('ocr-maint-file-input').value = '';
+        
         document.getElementById('maint-date').value = new Date().toISOString().split('T')[0];
         maintModal.classList.add('open');
       });
@@ -566,6 +576,7 @@ function initFormListeners() {
     const odometer = parseInt(document.getElementById('maint-odo').value);
     const cost = document.getElementById('maint-cost').value ? parseInt(document.getElementById('maint-cost').value) : null;
     const notes = document.getElementById('maint-notes').value;
+    const imageData = document.getElementById('maint-image-data').value;
     
     const initialOdo = parseInt(state.settings.initialOdo) || 0;
     if (odometer < initialOdo) {
@@ -573,12 +584,12 @@ function initFormListeners() {
       return;
     }
     
-    const maintData = { type, date, odometer, cost, notes };
+    const maintData = { type, date, odometer, cost, notes, image: imageData };
     
     if (index === -1) {
       state.maintLogs.push(maintData);
     } else {
-      state.maintLogs[index] = maintData;
+      state.maintLogs[index] = { ...state.maintLogs[index], ...maintData };
     }
     
     saveData();
@@ -699,7 +710,23 @@ window.editMaintLog = function(index) {
   document.getElementById('maint-odo').value = log.odometer;
   document.getElementById('maint-cost').value = log.cost || '';
   document.getElementById('maint-notes').value = log.notes || '';
+  document.getElementById('maint-image-data').value = log.image || '';
   
+  // Pre-fill image view if edit contains ticket image
+  const previewContainer = document.getElementById('ocr-maint-preview-container');
+  const previewImg = document.getElementById('ocr-maint-preview-img');
+  
+  if (log.image) {
+    previewContainer.style.display = 'block';
+    previewImg.src = log.image;
+    document.getElementById('scanner-maint-status').style.display = 'none';
+    document.getElementById('scanner-maint-laser').style.display = 'none';
+  } else {
+    previewContainer.style.display = 'none';
+    previewImg.src = '';
+  }
+  
+  document.getElementById('ocr-maint-results-alert').style.display = 'none';
   document.getElementById('modal-maint').classList.add('open');
 };
 
@@ -721,37 +748,81 @@ window.viewPhoto = function(index) {
   }
 };
 
+window.viewMaintPhoto = function(index) {
+  const log = state.maintLogs[index];
+  if (log && log.image) {
+    const viewerModal = document.getElementById('modal-viewer');
+    const viewerImg = document.getElementById('viewer-img');
+    viewerImg.src = log.image;
+    viewerModal.classList.add('open');
+  }
+};
+
 // ==========================================
 // TESSERACT OCR SCANNING INTEGRATION
 // ==========================================
 function initOcrEngine() {
+  // Fuel OCR
   const dropzone = document.getElementById('ocr-dropzone');
   const fileInput = document.getElementById('ocr-file-input');
   
-  // File change event
-  fileInput.addEventListener('change', (e) => {
-    if (e.target.files && e.target.files[0]) {
-      handleOcrImage(e.target.files[0]);
-    }
-  });
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleOcrImage(e.target.files[0]);
+      }
+    });
+  }
   
-  // Drag and drop events
-  dropzone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropzone.style.borderColor = 'var(--accent-gold)';
-  });
+  if (dropzone) {
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = 'var(--accent-gold)';
+    });
+    
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.style.borderColor = '#3a3f44';
+    });
+    
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = '#3a3f44';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleOcrImage(e.dataTransfer.files[0]);
+      }
+    });
+  }
+
+  // Maintenance OCR
+  const maintDropzone = document.getElementById('ocr-maint-dropzone');
+  const maintFileInput = document.getElementById('ocr-maint-file-input');
   
-  dropzone.addEventListener('dragleave', () => {
-    dropzone.style.borderColor = '#3a3f44';
-  });
+  if (maintFileInput) {
+    maintFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleMaintOcrImage(e.target.files[0]);
+      }
+    });
+  }
   
-  dropzone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropzone.style.borderColor = '#3a3f44';
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleOcrImage(e.dataTransfer.files[0]);
-    }
-  });
+  if (maintDropzone) {
+    maintDropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      maintDropzone.style.borderColor = 'var(--accent-gold)';
+    });
+    
+    maintDropzone.addEventListener('dragleave', () => {
+      maintDropzone.style.borderColor = '#3a3f44';
+    });
+    
+    maintDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      maintDropzone.style.borderColor = '#3a3f44';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleMaintOcrImage(e.dataTransfer.files[0]);
+      }
+    });
+  }
 }
 
 // Convert uploaded file to base64 & run Tesseract.js OCR engine
@@ -941,4 +1012,151 @@ function parseOcrResults(text) {
     alertResult.style.backgroundColor = 'rgba(224, 36, 94, 0.1)';
     alertResult.style.borderColor = 'var(--accent-red)';
   }
+}
+
+// Convert uploaded file to base64 & run Tesseract.js OCR for maintenance notes
+function handleMaintOcrImage(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64Data = e.target.result;
+    
+    // Save image to hidden form input
+    document.getElementById('maint-image-data').value = base64Data;
+    
+    // Render UI loading/scanning animations
+    const previewContainer = document.getElementById('ocr-maint-preview-container');
+    const previewImg = document.getElementById('ocr-maint-preview-img');
+    const laser = document.getElementById('scanner-maint-laser');
+    const statusOverlay = document.getElementById('scanner-maint-status');
+    const alertResult = document.getElementById('ocr-maint-results-alert');
+    
+    previewContainer.style.display = 'block';
+    previewImg.src = base64Data;
+    laser.style.display = 'block';
+    statusOverlay.style.display = 'flex';
+    statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Cargando Tesseract OCR...`;
+    alertResult.style.display = 'none';
+    
+    // Call Tesseract.js
+    Tesseract.recognize(
+      base64Data,
+      'spa', // Spanish model
+      { 
+        logger: m => {
+          if (m.status === 'recognizing') {
+            statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo nota: ${Math.round(m.progress * 100)}%`;
+          }
+        }
+      }
+    ).then(({ data: { text } }) => {
+      // Hide scanner overlays
+      laser.style.display = 'none';
+      statusOverlay.style.display = 'none';
+      
+      // Parse text details
+      parseMaintOcrResults(text);
+      
+    }).catch(err => {
+      console.error("Tesseract Engine OCR error (Maint): ", err);
+      laser.style.display = 'none';
+      statusOverlay.style.display = 'none';
+      alert("Hubo un error procesando la imagen con OCR: " + err.message + ". Puedes rellenar los datos manualmente.");
+    });
+  };
+  
+  reader.readAsDataURL(file);
+}
+
+// Extract details from maintenance ticket
+function parseMaintOcrResults(text) {
+  console.log("--- MAINTENANCE OCR TEXT DETECTED ---");
+  console.log(text);
+  console.log("--------------------------------------");
+  
+  const alertResult = document.getElementById('ocr-maint-results-alert');
+  const alertText = document.getElementById('ocr-maint-alert-text');
+  
+  const normalizedText = text.toUpperCase().replace(/\s+/g, ' ');
+  
+  let detectedDate = '';
+  let detectedOdo = 0;
+  let detectedPrice = 0;
+  
+  // 1. EXTRACT DATE
+  const dateRegex = /\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})\b/;
+  const dateMatch = normalizedText.match(dateRegex);
+  if (dateMatch) {
+    let day = dateMatch[1];
+    let month = dateMatch[2];
+    let year = dateMatch[3];
+    
+    if (day.length === 1) day = '0' + day;
+    if (month.length === 1) month = '0' + month;
+    if (year.length === 2) year = '20' + year;
+    
+    detectedDate = `${year}-${month}-${day}`;
+  }
+  
+  // 2. EXTRACT ODOMETER
+  const odoKeywords = ['KM', 'KMS', 'ODOMETRO', 'ODO', 'KILOMETRAJE', 'TOTAL', 'CUENTAKILOMETROS', 'KILOMETROS'];
+  const integerRegex = /\b(\d{5,6})\b/g;
+  const odoMatches = [...normalizedText.matchAll(integerRegex)];
+  
+  let bestOdoCandidate = 0;
+  let highestOdoInState = state.fuelLogs.length > 0 ? Math.max(...state.fuelLogs.map(l => l.odometer)) : parseInt(state.settings.initialOdo);
+  
+  for (const match of odoMatches) {
+    const val = parseInt(match[1]);
+    if (val >= highestOdoInState && val < highestOdoInState + 5000) {
+      bestOdoCandidate = val;
+      break;
+    }
+  }
+  
+  if (bestOdoCandidate === 0 && odoMatches.length > 0) {
+    bestOdoCandidate = parseInt(odoMatches[0][1]);
+  }
+  detectedOdo = bestOdoCandidate;
+  
+  // 3. EXTRACT PRICE
+  const priceRegex = /(?:TOTAL|PAGO|NETO|\$|PESOS|VALOR|COSTO)\s*[:\.]?\s*(\d{3,6})\b/;
+  const priceMatch = normalizedText.match(priceRegex);
+  if (priceMatch) {
+    detectedPrice = parseInt(priceMatch[1]);
+  } else {
+    const intRegex = /\b(\d{4,6})\b/g;
+    const intMatches = [...normalizedText.matchAll(intRegex)];
+    for (const match of intMatches) {
+      const val = parseInt(match[1]);
+      if (val >= 2000 && val <= 150000 && val !== detectedOdo) {
+        detectedPrice = val;
+        break;
+      }
+    }
+  }
+  
+  // Populate form fields
+  let alertContent = [];
+  
+  if (detectedDate) {
+    document.getElementById('maint-date').value = detectedDate;
+    alertContent.push(`<strong>Fecha:</strong> ${new Date(detectedDate).toLocaleDateString('es-ES', { timeZone: 'UTC' })}`);
+  }
+  if (detectedOdo) {
+    document.getElementById('maint-odo').value = detectedOdo;
+    alertContent.push(`<strong>Odómetro:</strong> ${detectedOdo.toLocaleString()} km`);
+  }
+  if (detectedPrice) {
+    document.getElementById('maint-cost').value = detectedPrice;
+    alertContent.push(`<strong>Costo:</strong> ${state.settings.currency}${detectedPrice.toLocaleString()}`);
+  }
+  
+  // Append raw text to notes textarea
+  const cleanNotesText = text.trim();
+  document.getElementById('maint-notes').value = cleanNotesText;
+  alertContent.push(`<strong>Detalles:</strong> Copiados directamente al campo de notas.`);
+  
+  // Show alert
+  alertResult.style.display = 'flex';
+  alertText.innerHTML = `<strong>Lectura de Nota Finalizada:</strong><br>` + alertContent.join('<br>') + `<br><small class="text-muted" style="display:block; margin-top:5px;">Por favor, revisa y edita el texto copiado abajo si el mecánico tiene letra difícil.</small>`;
 }

@@ -67,6 +67,9 @@
       <button class="nav-tab" data-tab="tab-maintenance" id="tab-btn-maintenance">
         <i class="fa-solid fa-wrench"></i> Mantenimiento
       </button>
+      <button class="nav-tab" data-tab="tab-panas" id="tab-btn-panas">
+        <i class="fa-solid fa-circle-question"></i> Guía de Panas
+      </button>
       <button class="nav-tab" data-tab="tab-settings" id="tab-btn-settings">
         <i class="fa-solid fa-sliders"></i> Ajustes
       </button>
@@ -287,19 +290,94 @@
                     <th>Kilometraje (km)</th>
                     <th>Costo ($)</th>
                     <th>Detalles / Repuestos</th>
+                    <th>Foto/Nota</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-maint-logs">
                   <!-- Dynamic rows go here -->
                   <tr>
-                    <td colspan="6" class="text-center">No hay mantenimientos registrados.</td>
+                    <td colspan="7" class="text-center">No hay mantenimientos registrados.</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
           
+        </div>
+      </section>
+      
+      <!-- TAB: TROUBLESHOOTING GUIDE (GUÍA DE PANAS) -->
+      <section id="tab-panas" class="tab-pane">
+        <div class="panas-layout">
+          <div class="card help-card">
+            <h2>Guía de Panas Clásicas (Honda GL-1000)</h2>
+            <p>El motor bóxer de 4 cilindros y la transmisión cardánica de las Goldwing GL-1000 de los 70s son sumamente robustos, pero tienen mañas específicas conocidas en la comunidad (Reddit, Randakks, etc.). Aquí tienes las panas más comunes y cómo enfrentarlas:</p>
+          </div>
+
+          <div class="panas-accordion">
+            
+            <div class="card pana-item">
+              <h3><i class="fa-solid fa-bolt text-danger"></i> 1. El Conector de 3 Cables Amarillos (Fallo de Carga)</h3>
+              <p><strong>Síntoma:</strong> La moto se va quedando sin electricidad andando, los marcadores bajan y finalmente se apaga. La batería está descargada.</p>
+              <p><strong>Causa:</strong> El enchufe de plástico que conecta los 3 cables amarillos del alternador (estator) al regulador de voltaje (bajo la tapa lateral izquierda) acumula corrosión, genera resistencia, se calienta y termina por derretirse.</p>
+              <div class="fix-box">
+                <span class="fix-title">Solución en ruta / Taller:</span>
+                <p>Cortar por completo el conector de plástico derretido, pelar los extremos de los 3 cables amarillos y **soldarlos con estaño directamente entre sí** (el orden de los cables amarillos no importa, es corriente alterna trifásica). Protégelos con tubo termorretráctil. Esto evita incendios y asegura la carga de la batería.</p>
+              </div>
+            </div>
+
+            <div class="card pana-item">
+              <h3><i class="fa-solid fa-droplet text-danger"></i> 2. Gasolina en el Aceite / Cilindro Bloqueado (Hidrolock)</h3>
+              <p><strong>Síntoma:</strong> Al presionar el botón de encendido, el motor hace un "clac" seco y no gira (bloqueado). Al medir el aceite, el nivel está muy alto y huele fuertemente a gasolina.</p>
+              <p><strong>Causa:</strong> Si dejas la llave de paso (petcock) abierta, la gravedad empuja la bencina. Si las agujas de los carburadores Keihin no sellan bien, la gasolina inunda las cámaras de combustión. Al intentar arrancar, el pistón no puede comprimir el líquido (Hidrolock).</p>
+              <div class="fix-box">
+                <span class="fix-title">Solución en ruta / Taller:</span>
+                <p><strong>¡NO FUERCES EL MOTOR DE PARTIDA!</strong> Podrías doblar una biela. Retira las 4 bujías, coloca un paño sobre los agujeros y gira el cigüeñal suavemente a mano usando el pedal de arranque de emergencia (GL-1000 tiene uno bajo el estanque falso) o en 5ta marcha moviendo la rueda trasera. La gasolina saldrá disparada por los agujeros de las bujías. **Cambia el aceite y filtro antes de arrancar la moto**, ya que el aceite diluido con bencina destruirá los metales del motor.</p>
+              </div>
+            </div>
+
+            <div class="card pana-item">
+              <h3><i class="fa-solid fa-plug text-danger"></i> 3. Tironeos y Pérdida de Potencia (Falla de Encendido)</h3>
+              <p><strong>Síntoma:</strong> La moto tironea, tose por el escape/admisión, o funciona en 2 cilindros en lugar de 4. Se confunde mucho con fallas de carburador.</p>
+              <p><strong>Causa:</strong> Los platinos mecánicos de encendido se descalibran con el tiempo, las puntas se queman o los condensadores fallan. También las tapas de bujías (caps) acumulan resistencia interna.</p>
+              <div class="fix-box">
+                <span class="fix-title">Solución en ruta / Taller:</span>
+                <p>Limpia los contactos de los platinos con una lija muy fina y ajusta la holgura (luz) a **0.35 mm** en el punto más alto de la leva. Verifica que los cables de las bobinas no estén sueltos. Como mejora definitiva, la comunidad recomienda instalar un sistema de encendido electrónico **Dyna S** para eliminar los platinos de por vida.</p>
+              </div>
+            </div>
+
+            <div class="card pana-item">
+              <h3><i class="fa-solid fa-gauge text-danger"></i> 4. Ralentí Inestable / Subida lenta de RPM (Fugas de Vacío)</h3>
+              <p><strong>Síntoma:</strong> El motor tarda mucho en bajar a ralentí después de acelerar, o regula de forma muy inestable y tose en bajas revoluciones.</p>
+              <p><strong>Causa:</strong> Entrada de aire no medida (fuga de vacío) por los O-rings de los colectores de admisión que van desde los carburadores a las culatas. Con los años, la goma se seca y agrieta.</p>
+              <div class="fix-box">
+                <span class="fix-title">Solución en ruta / Taller:</span>
+                <p>Para diagnosticar en ruta, con la moto encendida en ralentí, rocía un poco de spray limpia-carburadores (o agua) en las uniones de los colectores de admisión. Si las RPM cambian momentáneamente, hay una fuga de vacío. Reemplaza las juntas tóricas (O-rings) de admisión.</p>
+              </div>
+            </div>
+
+            <div class="card pana-item">
+              <h3><i class="fa-solid fa-circle-exclamation text-danger"></i> 5. Muerte Eléctrica Total (Fusible Principal de Vidrio)</h3>
+              <p><strong>Síntoma:</strong> Giras la llave de contacto y no enciende ninguna luz, bocina ni tablero. Muerte eléctrica absoluta.</p>
+              <p><strong>Causa:</strong> El portafusibles de vidrio de 30 amperios original ubicado cerca de la batería se calienta, se corroe o el fusible de vidrio se rompe internamente de forma invisible.</p>
+              <div class="fix-box">
+                <span class="fix-title">Solución en ruta / Taller:</span>
+                <p>Instala un portafusibles aéreo moderno tipo "muela" (ATC/blade) resistente al agua con un fusible de 30A. Esto elimina las fallas por fatiga del portafusibles original de los 70s.</p>
+              </div>
+            </div>
+
+            <div class="card pana-item">
+              <h3><i class="fa-solid fa-temperature-high text-danger"></i> 6. Agujas de Instrumentos Inestables (Regulador de 7V)</h3>
+              <p><strong>Síntoma:</strong> Los marcadores de temperatura y nivel de combustible se van al máximo de golpe o marcan valores erráticos e imposibles.</p>
+              <p><strong>Causa:</strong> El regulador térmico de 7 voltios original que alimenta los instrumentos clásicos (detrás de los medidores en el tanque falso) falla, enviando 12V directos a los relojes.</p>
+              <div class="fix-box">
+                <span class="fix-title">Solución en ruta / Taller:</span>
+                <p>Desconecta el regulador dañado para no quemar las bobinas de los marcadores clásicos. Reemplázalo soldando un chip regulador electrónico moderno de 7V tipo **LM7807** (cuesta menos de $1 USD en tiendas de electrónica y es indestructible).</p>
+              </div>
+            </div>
+
+          </div>
         </div>
       </section>
       
@@ -472,6 +550,36 @@
       </div>
       <div class="modal-body">
         
+        <!-- OCR Area para Mantenimiento -->
+        <div class="ocr-section">
+          <h3>Escanear Nota del Mecánico / Recibo</h3>
+          <p class="text-muted">Sube una foto de la nota manuscrita de tu mecánico para extraer los detalles, fecha y costos usando OCR local.</p>
+          
+          <div class="ocr-upload-area" id="ocr-maint-dropzone">
+            <i class="fa-solid fa-camera-rotate upload-icon"></i>
+            <span class="upload-text">Toma una foto de la nota o selecciona un archivo</span>
+            <input type="file" id="ocr-maint-file-input" accept="image/*" capture="environment">
+          </div>
+          
+          <!-- Image preview & scanning loader -->
+          <div class="ocr-preview-container" id="ocr-maint-preview-container" style="display: none;">
+            <img src="" id="ocr-maint-preview-img" alt="Vista previa de la nota">
+            <div class="scanner-laser" id="scanner-maint-laser"></div>
+            <div class="scan-status" id="scanner-maint-status">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Inicializando motor OCR...
+            </div>
+          </div>
+          
+          <div class="ocr-results-alert" id="ocr-maint-results-alert" style="display: none;">
+            <div class="alert-icon"><i class="fa-solid fa-circle-info"></i></div>
+            <div class="alert-text" id="ocr-maint-alert-text">
+              Reconocimiento finalizado.
+            </div>
+          </div>
+        </div>
+        
+        <hr>
+        
         <form id="form-maint-log">
           <input type="hidden" id="maint-log-index" value="-1">
           
@@ -511,6 +619,9 @@
             <label for="maint-notes">Notas / Repuestos Usados / Detalles</label>
             <textarea id="maint-notes" class="form-control" rows="4" placeholder="Especifica marcas, códigos de piezas o detalles del trabajo realizado..."></textarea>
           </div>
+          
+          <!-- Storing image base64 locally -->
+          <input type="hidden" id="maint-image-data" value="">
           
           <div class="modal-footer">
             <button type="button" class="btn btn-neutral" id="btn-cancel-maint">Cancelar</button>
