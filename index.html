@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoldwingGas - GL-1000 Tracker</title>
+  
+  <!-- Google Fonts: Montserrat (Clean text) & Orbitron (Digital gauges) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Orbitron:wght@400..900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome for Premium Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Chart.js for graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Tesseract.js for local OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <svg class="honda-wing" viewBox="0 0 100 60" width="50" height="30">
+          <!-- Stylized vintage Honda wing logo -->
+          <path d="M5,45 C20,40 35,28 65,15 C75,11 88,5 95,8 C96,9 95,12 90,16 C80,24 60,35 40,43 C25,49 12,50 5,45 Z" fill="#d32f2f" />
+          <path d="M12,41 C25,37 38,27 63,16 C70,13 80,8 86,10 C87,11 85,13 81,16 C73,22 56,31 40,38 C28,43 18,44 12,41 Z" fill="#ffb300" />
+          <path d="M18,37 C28,34 38,26 58,17 C64,14 72,11 76,12 C77,13 75,15 72,17 C65,22 52,29 38,34 C28,38 22,39 18,37 Z" fill="#ffffff" />
+        </svg>
+        <div class="header-titles">
+          <h1>GoldwingGas</h1>
+          <p class="model-badge">GL-1000 Classic (<span id="model-year-display">1978</span>)</p>
+        </div>
+      </div>
+      
+      <!-- Quick Info Bar -->
+      <div class="quick-odometer">
+        <span class="label">ODÓMETRO TOTAL</span>
+        <div class="mechanical-odo" id="header-odo">
+          <!-- Mechanical-looking digits -->
+          <span class="odo-digit">0</span>
+          <span class="odo-digit">0</span>
+          <span class="odo-digit">0</span>
+          <span class="odo-digit">0</span>
+          <span class="odo-digit">0</span>
+          <span class="odo-digit">0</span>
+          <span class="odo-unit">km</span>
+        </div>
+      </div>
+    </header>
+    
+    <!-- Navigation Tabs -->
+    <nav class="app-nav">
+      <button class="nav-tab active" data-tab="tab-dashboard" id="tab-btn-dashboard">
+        <i class="fa-solid fa-gauge-high"></i> Tablero
+      </button>
+      <button class="nav-tab" data-tab="tab-fuel" id="tab-btn-fuel">
+        <i class="fa-solid fa-gas-pump"></i> Bencina
+      </button>
+      <button class="nav-tab" data-tab="tab-maintenance" id="tab-btn-maintenance">
+        <i class="fa-solid fa-wrench"></i> Mantenimiento
+      </button>
+      <button class="nav-tab" data-tab="tab-settings" id="tab-btn-settings">
+        <i class="fa-solid fa-sliders"></i> Ajustes
+      </button>
+    </nav>
+    
+    <!-- Main Content Area -->
+    <main class="app-content">
+      
+      <!-- TAB 1: DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <div class="dashboard-grid">
+          
+          <!-- Speedometer & Fuel Gauges (Vintage 70s look) -->
+          <div class="card gauges-card">
+            <h2>Instrumental GL-1000</h2>
+            <div class="gauges-container">
+              <!-- Efficiency Gauge (Speedometer theme) -->
+              <div class="vintage-gauge" id="gauge-efficiency">
+                <div class="gauge-dial">
+                  <div class="gauge-ring"></div>
+                  <div class="gauge-ticks">
+                    <span class="tick tick-0">0</span>
+                    <span class="tick tick-5">5</span>
+                    <span class="tick tick-10">10</span>
+                    <span class="tick tick-15">15</span>
+                    <span class="tick tick-20">20</span>
+                    <span class="tick tick-25">25</span>
+                  </div>
+                  <div class="gauge-needle-center"></div>
+                  <div class="gauge-needle" id="needle-eff" style="transform: rotate(-120deg);"></div>
+                  <div class="gauge-label-center">
+                    <span class="gauge-value" id="val-eff-digital">--.-</span>
+                    <span class="gauge-unit">km/L</span>
+                  </div>
+                </div>
+                <p class="gauge-title">Eficiencia Media</p>
+              </div>
+              
+              <!-- Fuel Level / Next Trip Gauge -->
+              <div class="vintage-gauge" id="gauge-fuel">
+                <div class="gauge-dial">
+                  <div class="gauge-ring"></div>
+                  <div class="gauge-ticks-fuel">
+                    <span class="tick-f tick-empty">R</span>
+                    <span class="tick-f tick-half">1/2</span>
+                    <span class="tick-f tick-full">F</span>
+                  </div>
+                  <div class="gauge-needle-center"></div>
+                  <div class="gauge-needle" id="needle-fuel" style="transform: rotate(-120deg);"></div>
+                  <div class="gauge-label-center">
+                    <span class="gauge-value" id="val-fuel-range">---</span>
+                    <span class="gauge-unit">km Autonomía</span>
+                  </div>
+                </div>
+                <p class="gauge-title">Nivel / Rango Est.</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Indicator Lights (Retro motorcycle dashboard lights) -->
+          <div class="card indicators-card">
+            <h2>Luces de Advertencia (Servicio)</h2>
+            <div class="indicators-grid">
+              <div class="indicator-lamp" id="lamp-belts">
+                <div class="lamp-lens green"></div>
+                <span class="lamp-label">CORREAS</span>
+              </div>
+              <div class="indicator-lamp" id="lamp-valves">
+                <div class="lamp-lens green"></div>
+                <span class="lamp-label">VÁLVULAS</span>
+              </div>
+              <div class="indicator-lamp" id="lamp-carbs">
+                <div class="lamp-lens green"></div>
+                <span class="lamp-label">CARBS</span>
+              </div>
+              <div class="indicator-lamp" id="lamp-oil">
+                <div class="lamp-lens green"></div>
+                <span class="lamp-label">ACEITE</span>
+              </div>
+              <div class="indicator-lamp" id="lamp-shaft">
+                <div class="lamp-lens green"></div>
+                <span class="lamp-label">CARDÁN</span>
+              </div>
+              <div class="indicator-lamp" id="lamp-points">
+                <div class="lamp-lens green"></div>
+                <span class="lamp-label">PLATINOS</span>
+              </div>
+            </div>
+            <p class="indicator-helper">* Luces se encenderán en amarillo (próximo) o rojo (vencido) según odómetro.</p>
+          </div>
+          
+          <!-- Quick Statistics -->
+          <div class="card stats-card">
+            <h2>Resumen General</h2>
+            <div class="stats-grid">
+              <div class="stat-box">
+                <i class="fa-solid fa-road icon-blue"></i>
+                <div class="stat-data">
+                  <span class="stat-num" id="stat-total-dist">0</span>
+                  <span class="stat-lbl">Km Recorridos</span>
+                </div>
+              </div>
+              <div class="stat-box">
+                <i class="fa-solid fa-droplet icon-yellow"></i>
+                <div class="stat-data">
+                  <span class="stat-num" id="stat-total-fuel">0.0</span>
+                  <span class="stat-lbl">Litros Totales</span>
+                </div>
+              </div>
+              <div class="stat-box">
+                <i class="fa-solid fa-wallet icon-green"></i>
+                <div class="stat-data">
+                  <span class="stat-num" id="stat-total-cost">$0</span>
+                  <span class="stat-lbl">Gasto Total Bencina</span>
+                </div>
+              </div>
+              <div class="stat-box">
+                <i class="fa-solid fa-chart-line icon-red"></i>
+                <div class="stat-data">
+                  <span class="stat-num" id="stat-avg-consumption">0.0</span>
+                  <span class="stat-lbl">L/100km Promedio</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Quick Actions -->
+          <div class="card actions-card">
+            <h2>Acciones Rápidas</h2>
+            <div class="actions-buttons">
+              <button class="btn btn-primary" id="btn-open-fuel-modal">
+                <i class="fa-solid fa-file-invoice-dollar"></i> Cargar Bencina (OCR)
+              </button>
+              <button class="btn btn-secondary" id="btn-open-maint-modal">
+                <i class="fa-solid fa-wrench"></i> Registrar Mantenimiento
+              </button>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+      
+      <!-- TAB 2: FUEL LOGS -->
+      <section id="tab-fuel" class="tab-pane">
+        <div class="fuel-layout">
+          
+          <!-- Chart -->
+          <div class="card chart-card">
+            <h2>Historial de Consumo (km/L)</h2>
+            <div class="chart-wrapper">
+              <canvas id="fuelChart"></canvas>
+            </div>
+          </div>
+          
+          <!-- Table spreadsheet of logs -->
+          <div class="card logs-card">
+            <div class="card-header-actions">
+              <h2>Registro de Cargas</h2>
+              <button class="btn btn-sm btn-primary" id="btn-open-fuel-modal-2">
+                <i class="fa-solid fa-plus"></i> Nueva Carga
+              </button>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="data-table" id="table-fuel-logs">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Odómetro (km)</th>
+                    <th>Carga (L)</th>
+                    <th>Total ($)</th>
+                    <th>Consumo</th>
+                    <th>Boleta/Foto</th>
+                    <th>Notas</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-fuel-logs">
+                  <!-- Dynamic rows go here -->
+                  <tr>
+                    <td colspan="8" class="text-center">No hay registros de bencina cargados.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+      
+      <!-- TAB 3: MAINTENANCE LOGS -->
+      <section id="tab-maintenance" class="tab-pane">
+        <div class="maintenance-layout">
+          
+          <!-- Preventative Schedules / Cards -->
+          <div class="card schedules-card">
+            <h2>Estado de Mantenimiento Preventivo</h2>
+            <div class="schedules-grid" id="schedules-list">
+              <!-- Maintenance schedule items rendered dynamically -->
+            </div>
+          </div>
+          
+          <!-- Timeline / Completed logs -->
+          <div class="card maint-logs-card">
+            <div class="card-header-actions">
+              <h2>Historial de Mantenimientos Realizados</h2>
+              <button class="btn btn-sm btn-secondary" id="btn-open-maint-modal-2">
+                <i class="fa-solid fa-plus"></i> Registrar Servicio
+              </button>
+            </div>
+            
+            <div class="table-responsive">
+              <table class="data-table" id="table-maint-logs">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Servicio / Tarea</th>
+                    <th>Kilometraje (km)</th>
+                    <th>Costo ($)</th>
+                    <th>Detalles / Repuestos</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-maint-logs">
+                  <!-- Dynamic rows go here -->
+                  <tr>
+                    <td colspan="6" class="text-center">No hay mantenimientos registrados.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+      
+      <!-- TAB 4: SETTINGS -->
+      <section id="tab-settings" class="tab-pane">
+        <div class="settings-layout">
+          
+          <div class="card config-card">
+            <h2>Configuración de la Motocicleta</h2>
+            <form id="form-bike-settings">
+              <div class="form-group">
+                <label for="settings-model-year">Año de Fabricación (GL-1000)</label>
+                <select id="settings-model-year" class="form-control">
+                  <option value="1975">1975 (K0 - Primer modelo, reloj azul-verde)</option>
+                  <option value="1976">1976 (K1 - Reloj azul-verde)</option>
+                  <option value="1977">1977 (K2 - Reloj azul-verde)</option>
+                  <option value="1978" selected>1978 (K3 - Relojes negros/vintage)</option>
+                  <option value="1979">1979 (K4 - Relojes negros/vintage)</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="settings-initial-odo">Odómetro Inicial al comenzar a usar la App (km)</label>
+                <input type="number" id="settings-initial-odo" class="form-control" value="0" min="0">
+              </div>
+              
+              <div class="form-group">
+                <label for="settings-currency">Símbolo de Moneda</label>
+                <input type="text" id="settings-currency" class="form-control" value="$" max="3">
+              </div>
+              
+              <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+            </form>
+          </div>
+          
+          <div class="card data-card">
+            <h2>Respaldo y Datos</h2>
+            <p>Tus datos se guardan automáticamente en este navegador localmente. Para no perder tu historial, puedes exportar copias de seguridad.</p>
+            <div class="backup-actions">
+              <button class="btn btn-secondary" id="btn-export-data">
+                <i class="fa-solid fa-file-export"></i> Exportar Datos (JSON)
+              </button>
+              
+              <div class="file-upload-btn btn btn-neutral">
+                <i class="fa-solid fa-file-import"></i> Importar Datos (JSON)
+                <input type="file" id="input-import-data" accept=".json">
+              </div>
+            </div>
+            
+            <hr>
+            <h3 class="text-danger">Zona Peligrosa</h3>
+            <p class="text-muted">Esto borrará de forma permanente todo el historial de bencina y mantenimientos guardado en esta máquina.</p>
+            <button class="btn btn-danger" id="btn-reset-data">
+              <i class="fa-solid fa-trash-can"></i> Borrar Todo el Historial
+            </button>
+          </div>
+          
+          <div class="card help-card">
+            <h2>Sobre la Goldwing GL-1000</h2>
+            <p>La <strong>Honda GL1000 Gold Wing</strong> original revolucionó el mototurismo en 1975 con su motor bóxer de 4 cilindros refrigerado por agua de 999cc y transmisión por eje cardán. Al ser una moto clásica, el mantenimiento periódico (especialmente el cambio de correas de distribución y la sincronización de sus 4 carburadores Keihin) es crucial para evitar fallas catastróficas.</p>
+            <p class="signature">Creado con pasión para entusiastas de las clásicas de dos ruedas.</p>
+          </div>
+          
+        </div>
+      </section>
+      
+    </main>
+  </div>
+  
+  <!-- MODAL: ADD FUEL LOG (WITH OCR SCANNER) -->
+  <div class="modal" id="modal-fuel">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-gas-pump"></i> Carga de Combustible</h2>
+        <span class="close-modal" id="close-fuel-modal">&times;</span>
+      </div>
+      <div class="modal-body">
+        
+        <!-- OCR Area -->
+        <div class="ocr-section">
+          <h3>Escanear Foto de Boleta + Odómetro</h3>
+          <p class="text-muted">Sube una foto de tu boleta colocada al lado del cuentakilómetros para extraer la información de forma automática.</p>
+          
+          <div class="ocr-upload-area" id="ocr-dropzone">
+            <i class="fa-solid fa-camera-rotate upload-icon"></i>
+            <span class="upload-text">Toma una foto o selecciona un archivo</span>
+            <input type="file" id="ocr-file-input" accept="image/*">
+          </div>
+          
+          <!-- Image preview & scanning loader -->
+          <div class="ocr-preview-container" id="ocr-preview-container" style="display: none;">
+            <img src="" id="ocr-preview-img" alt="Vista previa de la boleta">
+            <div class="scanner-laser" id="scanner-laser"></div>
+            <div class="scan-status" id="scan-status">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Inicializando motor OCR...
+            </div>
+          </div>
+          
+          <div class="ocr-results-alert" id="ocr-results-alert" style="display: none;">
+            <div class="alert-icon"><i class="fa-solid fa-circle-info"></i></div>
+            <div class="alert-text" id="ocr-alert-text">
+              Reconocimiento finalizado. Revisa los campos rellenados abajo.
+            </div>
+          </div>
+        </div>
+        
+        <hr>
+        
+        <!-- Manual Form Inputs -->
+        <form id="form-fuel-log">
+          <input type="hidden" id="fuel-log-index" value="-1">
+          
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="fuel-date">Fecha</label>
+              <input type="date" id="fuel-date" class="form-control" required>
+            </div>
+            <div class="form-group col-6">
+              <label for="fuel-odo">Odómetro Actual (km)</label>
+              <input type="number" id="fuel-odo" class="form-control" placeholder="Ej: 34210" required min="0">
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="fuel-liters">Litros Cargados (L)</label>
+              <input type="number" id="fuel-liters" class="form-control" step="0.01" placeholder="Ej: 14.52" required min="0.1">
+            </div>
+            <div class="form-group col-6">
+              <label for="fuel-cost">Costo Total ($)</label>
+              <input type="number" id="fuel-cost" class="form-control" placeholder="Ej: 15500" required min="1">
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="fuel-type">Modo de Manejo</label>
+              <select id="fuel-type" class="form-control">
+                <option value="Turismo" selected>Turismo (Tranquilo)</option>
+                <option value="Ciudad">Ciudad (Tráfico)</option>
+                <option value="Autopista">Autopista (Alta velocidad)</option>
+                <option value="Deportivo">Deportivo (Aceleraciones)</option>
+              </select>
+            </div>
+            <div class="form-group col-6">
+              <label for="fuel-station">Bencinera / Notas</label>
+              <input type="text" id="fuel-station" class="form-control" placeholder="Ej: Copec / Shell">
+            </div>
+          </div>
+          
+          <!-- Storing image base64 locally -->
+          <input type="hidden" id="fuel-image-data" value="">
+          
+          <div class="modal-footer">
+            <button type="button" class="btn btn-neutral" id="btn-cancel-fuel">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-fuel">Guardar Registro</button>
+          </div>
+        </form>
+        
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL: ADD MAINTENANCE LOG -->
+  <div class="modal" id="modal-maint">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-wrench"></i> Registrar Mantenimiento Realizado</h2>
+        <span class="close-modal" id="close-maint-modal">&times;</span>
+      </div>
+      <div class="modal-body">
+        
+        <form id="form-maint-log">
+          <input type="hidden" id="maint-log-index" value="-1">
+          
+          <div class="form-group">
+            <label for="maint-type">Tipo de Servicio</label>
+            <select id="maint-type" class="form-control" required>
+              <option value="Correas de Distribución">Correas de Distribución (Timing Belts)</option>
+              <option value="Sincronización Carburadores">Sincronización de Carburadores</option>
+              <option value="Ajuste de Válvulas">Ajuste de Válvulas</option>
+              <option value="Cambio de Aceite y Filtro" selected>Cambio de Aceite y Filtro (Motor)</option>
+              <option value="Aceite Transmisión Final">Aceite de Transmisión Final (Cardán)</option>
+              <option value="Platinos y Bujías">Ajuste de Platinos y Bujías</option>
+              <option value="Frenos / Líquido">Sistema de Frenos (Pastillas / Líquido)</option>
+              <option value="Neumáticos">Neumáticos (Reemplazo / Presión)</option>
+              <option value="Batería / Eléctrico">Batería o Sistema Eléctrico</option>
+              <option value="Otro">Otro (Detallar en notas)</option>
+            </select>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="maint-date">Fecha de Ejecución</label>
+              <input type="date" id="maint-date" class="form-control" required>
+            </div>
+            <div class="form-group col-6">
+              <label for="maint-odo">Kilometraje del Odómetro (km)</label>
+              <input type="number" id="maint-odo" class="form-control" placeholder="Ej: 34250" required min="0">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="maint-cost">Costo del Trabajo ($ - Opcional)</label>
+            <input type="number" id="maint-cost" class="form-control" placeholder="Ej: 45000" min="0">
+          </div>
+          
+          <div class="form-group">
+            <label for="maint-notes">Notas / Repuestos Usados / Detalles</label>
+            <textarea id="maint-notes" class="form-control" rows="4" placeholder="Especifica marcas, códigos de piezas o detalles del trabajo realizado..."></textarea>
+          </div>
+          
+          <div class="modal-footer">
+            <button type="button" class="btn btn-neutral" id="btn-cancel-maint">Cancelar</button>
+            <button type="submit" class="btn btn-secondary" id="btn-submit-maint">Guardar Servicio</button>
+          </div>
+        </form>
+        
+      </div>
+    </div>
+  </div>
+  
+  <!-- Image viewer modal (To see uploaded fuel tickets) -->
+  <div class="modal" id="modal-viewer">
+    <div class="modal-content viewer-content">
+      <div class="modal-header">
+        <h3>Comprobante de Carga</h3>
+        <span class="close-modal" id="close-viewer-modal">&times;</span>
+      </div>
+      <div class="modal-body text-center">
+        <img src="" id="viewer-img" style="max-width: 100%; max-height: 70vh; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+      </div>
+    </div>
+  </div>
+  
+  <!-- JS -->
+  <script src="app.js"></script>
+</body>
+</html>
