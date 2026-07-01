@@ -2,6 +2,11 @@
 let state = {
   fuelLogs: [],
   maintLogs: [],
+  shelterChecks: {
+    airFilter: '',
+    fuses: '',
+    radiator: ''
+  },
   settings: {
     modelYear: '1978',
     initialOdo: 45000,
@@ -41,6 +46,13 @@ document.addEventListener('DOMContentLoaded', () => {
   initFormListeners();
   initOcrEngine();
   initBatchImporter();
+  
+  // Advanced GL-1000 specialist tools
+  initShelterGuide();
+  initFuelAdditiveCalc();
+  initAltitudeCalc();
+  initSparkPlugDiag();
+  
   updateUI();
 });
 
@@ -50,6 +62,10 @@ function loadData() {
   if (savedState) {
     try {
       state = JSON.parse(savedState);
+      // Fallback for new properties
+      if (!state.shelterChecks) {
+        state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
+      }
     } catch (e) {
       console.error('Error al cargar datos de localStorage. Iniciando con semillas.', e);
       seedState();
@@ -62,6 +78,7 @@ function loadData() {
 function seedState() {
   state.fuelLogs = [...SEED_FUEL_LOGS];
   state.maintLogs = [...SEED_MAINT_LOGS];
+  state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
   state.settings = {
     modelYear: '1978',
     initialOdo: 45000,
@@ -93,6 +110,7 @@ function initTabs() {
       // If fuel tab, redraw Chart.js graph
       if (tab.dataset.tab === 'tab-fuel') {
         renderFuelChart();
+        updateEfficiencyStyleChart();
       }
     });
   });
@@ -133,6 +151,17 @@ function updateUI() {
   
   // Update maintenance lamps & schedules list
   updateMaintenanceStatus(stats.currentOdo);
+  
+  // Update Shelter UI if initialized
+  if (typeof selectedShelterComponent !== 'undefined' && document.getElementById('shelter-status-badge')) {
+    showShelterComponentDetails(selectedShelterComponent);
+  }
+  
+  // Update driving style chart if active tab is fuel
+  const activeTab = document.querySelector('.nav-tab.active');
+  if (activeTab && activeTab.dataset.tab === 'tab-fuel') {
+    updateEfficiencyStyleChart();
+  }
 }
 
 // Update Odometer display in the header (mechanical drum look)
@@ -1752,4 +1781,354 @@ function extractFuelOcrProperties(text) {
   else if (/TERPEL/i.test(normalized)) station = 'Terpel';
   
   return { date, odometer, liters, cost, station };
+}
+
+// ==========================================
+// ADVANCED GL-1000 SPECIALIST TOOLS
+// ==========================================
+
+// 1. Shelter Guide (Estanque Falso) Lógica
+let selectedShelterComponent = 'radiator';
+
+const SHELTER_DETAILS = {
+  radiator: {
+    title: 'Depósito de Expansión del Radiador',
+    desc: '<strong>Ubicación:</strong> Frente del shelter, lado derecho.<br><strong>Función:</strong> Recupera y contiene el líquido refrigerante caliente.<br><strong>Falla Clásica:</strong> El depósito original de plástico se seca con los años y se agrieta, perdiendo refrigerante y provocando calentamientos.<br><strong>Revisión:</strong> El nivel debe estar entre las marcas min y max con el motor frío. Rellena solo con refrigerante verde de etilenglicol compatible con radiadores de aluminio (no uses agua de la llave).',
+    badgeClass: 'radiator'
+  },
+  airFilter: {
+    title: 'Filtro de Aire OEM (Caja de Aire)',
+    desc: '<strong>Ubicación:</strong> Centro del shelter (bajo la bandeja de herramientas).<br><strong>Función:</strong> Filtra el aire para las 4 gargantas de carburador Keihin.<br><strong>Falla Clásica:</strong> Las esponjas originales se desarman y son succionadas por el motor. Los filtros de papel tapados enriquecen demasiado la mezcla, manchando bujías y ahogando la moto.<br><strong>Revisión:</strong> Abre los ganchos rápidos, levanta la tapa y saca el elemento. Limpia con aire comprimido o reemplaza. Imprescindible para que los carburadores sincronicen correctamente.',
+    badgeClass: 'airFilter'
+  },
+  fuses: {
+    title: 'Caja de Fusibles y Regulador',
+    desc: '<strong>Ubicación:</strong> Lado posterior del shelter (bajo el compartimento de herramientas).<br><strong>Función:</strong> Fusibles de instrumentos clásicos de vidrio de 5A/10A/15A y relé de partida.<br><strong>Falla Clásica:</strong> Los terminales de bronce originales acumulan óxido verde, provocando caídas de tensión y cortes eléctricos falsos. Los fusibles de vidrio se fatigan solos internamente.<br><strong>Revisión:</strong> Limpia los contactos periódicamente con spray limpia-contactos eléctrico. Muchos dueños reemplazan esta caja por una moderna de fusibles ATC.',
+    badgeClass: 'fuses'
+  }
+};
+
+function initShelterGuide() {
+  const hotzones = document.querySelectorAll('.shelter-hotzone');
+  const checkBtn = document.getElementById('btn-check-shelter-component');
+  
+  hotzones.forEach(hz => {
+    hz.addEventListener('click', () => {
+      hotzones.forEach(h => h.classList.remove('active'));
+      hz.classList.add('active');
+      
+      selectedShelterComponent = hz.dataset.component;
+      showShelterComponentDetails(selectedShelterComponent);
+    });
+  });
+  
+  if (checkBtn) {
+    checkBtn.addEventListener('click', () => {
+      state.shelterChecks[selectedShelterComponent] = new Date().toISOString().split('T')[0];
+      saveData();
+      showShelterComponentDetails(selectedShelterComponent);
+      alert(`Se ha registrado la inspección de "${SHELTER_DETAILS[selectedShelterComponent].title}" con éxito.`);
+    });
+  }
+  
+  // Show default component
+  showShelterComponentDetails('radiator');
+}
+
+function showShelterComponentDetails(compKey) {
+  const details = SHELTER_DETAILS[compKey];
+  if (!details) return;
+  
+  const titleEl = document.getElementById('shelter-component-title');
+  const descEl = document.getElementById('shelter-component-desc');
+  
+  if (titleEl) titleEl.textContent = details.title;
+  if (descEl) descEl.innerHTML = details.desc;
+  
+  const badge = document.getElementById('shelter-status-badge');
+  const checkBtn = document.getElementById('btn-check-shelter-component');
+  
+  if (badge) {
+    badge.style.display = 'inline-flex';
+    
+    // Calculate status
+    const lastCheck = state.shelterChecks ? state.shelterChecks[compKey] : '';
+    if (!lastCheck) {
+      badge.className = 'shelter-status-badge plug-rich';
+      badge.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Requiere Inspección (Sin registro)`;
+    } else {
+      const diffTime = Math.abs(new Date() - new Date(lastCheck));
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > 60) {
+        badge.className = 'shelter-status-badge plug-lean';
+        badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Vencido (${diffDays} días)`;
+      } else {
+        badge.className = 'shelter-status-badge plug-optimal';
+        badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Inspeccionado (hace ${diffDays} días)`;
+      }
+    }
+  }
+  
+  if (checkBtn) checkBtn.style.display = 'block';
+}
+
+// 2. Calculadora de aditivos
+function initFuelAdditiveCalc() {
+  const litInput = document.getElementById('additive-liters');
+  const typeSelect = document.getElementById('additive-type');
+  
+  const calculate = () => {
+    const liters = parseFloat(litInput.value) || 0;
+    const type = typeSelect.value;
+    let ratio = 5; // ml per liter
+    
+    if (type === 'stabilizer') ratio = 4;
+    else if (type === 'cleaner') ratio = 5;
+    else if (type === 'lead') ratio = 2;
+    
+    const dose = Math.round(liters * ratio);
+    
+    const doseValEl = document.getElementById('additive-dose-val');
+    const fuelValEl = document.getElementById('additive-fuel-val');
+    
+    if (doseValEl) doseValEl.textContent = dose;
+    if (fuelValEl) fuelValEl.textContent = liters.toFixed(1);
+  };
+  
+  if (litInput) litInput.addEventListener('input', calculate);
+  if (typeSelect) typeSelect.addEventListener('change', calculate);
+  
+  // Initial calculate
+  if (litInput) calculate();
+}
+
+// 3. Calculadora de altitud
+function initAltitudeCalc() {
+  const slider = document.getElementById('slider-altitude');
+  
+  const calculate = () => {
+    const alt = parseInt(slider.value) || 0;
+    
+    const altValEl = document.getElementById('slider-alt-val');
+    const screwValEl = document.getElementById('alt-screw-val');
+    const powerValEl = document.getElementById('alt-power-val');
+    const powerDescEl = document.getElementById('alt-power-desc');
+    const recTextEl = document.getElementById('alt-rec-text');
+    
+    if (altValEl) altValEl.textContent = `${alt.toLocaleString()} metros`;
+    
+    // Keihin standard mixture screw turns (Pilot screw turns)
+    let turns = 1.25 - (alt / 1000) * 0.15;
+    if (turns < 0.5) turns = 0.5; // safety limit
+    if (screwValEl) screwValEl.textContent = `${turns.toFixed(2)} vueltas`;
+    
+    // Performance HP calculations
+    const originalHP = 80.0;
+    const lossPct = (alt / 300) * 0.03;
+    const hp = originalHP * (1 - lossPct);
+    const hpPct = Math.round((1 - lossPct) * 100);
+    
+    if (powerValEl) {
+      powerValEl.textContent = `${hp.toFixed(1)} HP`;
+      if (hpPct > 85) {
+        powerValEl.style.color = 'var(--accent-green)';
+        if (powerDescEl) powerDescEl.textContent = `${hpPct}% de fábrica (Buena)`;
+      } else if (hpPct > 70) {
+        powerValEl.style.color = 'var(--accent-gold)';
+        if (powerDescEl) powerDescEl.textContent = `${hpPct}% de fábrica (Aceptable)`;
+      } else {
+        powerValEl.style.color = 'var(--accent-red)';
+        if (powerDescEl) powerDescEl.textContent = `${hpPct}% de fábrica (Baja)`;
+      }
+    }
+    
+    // Recommendations text
+    if (recTextEl) {
+      if (alt < 800) {
+        recTextEl.innerHTML = `<strong>Recomendación:</strong> Mezcla ideal a nivel del mar. Chicleres de alta estándar (#120) funcionan óptimo. Tornillo de aire a 1.25 vueltas.`;
+      } else if (alt < 2000) {
+        recTextEl.innerHTML = `<strong>Recomendación:</strong> Altitud media. Cierra un poco el tornillo de aire del carburador (${turns.toFixed(2)} vueltas) para empobrecer la mezcla y evitar bujías carbonizadas.`;
+      } else {
+        recTextEl.innerHTML = `<strong>Recomendación:</strong> Cordillera/Gran Altura. La moto andará muy rica de mezcla. Cierra el tornillo de aire al mínimo (${turns.toFixed(2)} vueltas). Para estancias largas, reduce los chicleres de alta de #120 a #115.`;
+      }
+    }
+  };
+  
+  if (slider) {
+    slider.addEventListener('input', calculate);
+    calculate();
+  }
+}
+
+// 4. Diagnóstico de bujías
+function initSparkPlugDiag() {
+  const selects = document.querySelectorAll('.plug-select');
+  
+  selects.forEach(select => {
+    select.addEventListener('change', (e) => {
+      const cyl = e.target.dataset.cylinder;
+      const status = e.target.value;
+      
+      const icon = document.getElementById(`plug-icon-${cyl}`);
+      if (icon) {
+        icon.className = `plug-visual-icon plug-${status}`;
+      }
+      
+      recalculatePlugDiagnostic();
+    });
+  });
+}
+
+function recalculatePlugDiagnostic() {
+  const select1 = document.getElementById('select-plug-1');
+  const select2 = document.getElementById('select-plug-2');
+  const select3 = document.getElementById('select-plug-3');
+  const select4 = document.getElementById('select-plug-4');
+  
+  if (!select1 || !select2 || !select3 || !select4) return;
+  
+  const statuses = [
+    select1.value,
+    select2.value,
+    select3.value,
+    select4.value
+  ];
+  
+  const reportBox = document.getElementById('plug-diagnostic-report');
+  if (!reportBox) return;
+  
+  let richCount = 0;
+  let leanCount = 0;
+  let oilCount = 0;
+  let optimalCount = 0;
+  
+  statuses.forEach(s => {
+    if (s === 'optimal') optimalCount++;
+    else if (s === 'rich') richCount++;
+    else if (s === 'lean') leanCount++;
+    else if (s === 'oil') oilCount++;
+  });
+  
+  if (optimalCount === 4) {
+    reportBox.style.backgroundColor = 'rgba(23, 191, 99, 0.05)';
+    reportBox.style.borderColor = 'var(--accent-green)';
+    reportBox.innerHTML = `<strong>Estado General:</strong> Motor bien balanceado. Todos los cilindros muestran una combustión ideal de color café canela. Los Keihin están bien calibrados.`;
+  } else if (oilCount > 0) {
+    reportBox.style.backgroundColor = 'rgba(224, 36, 94, 0.05)';
+    reportBox.style.borderColor = 'var(--accent-red)';
+    reportBox.innerHTML = `<strong>¡Atención: Presencia de Aceite!</strong> Tienes bujías negras aceitosas. Esto indica que está entrando aceite a las cámaras de combustión. Revisa los retenes de guías de válvulas o anillos de pistón gastados.`;
+  } else if (richCount > 0 && leanCount > 0) {
+    reportBox.style.backgroundColor = 'rgba(255, 179, 0, 0.05)';
+    reportBox.style.borderColor = 'var(--accent-gold)';
+    reportBox.innerHTML = `<strong>Carburadores desbalanceados:</strong> Tienes cilindros con mezcla rica (negros secos) y otros con mezcla pobre (blancos). Requiere urgente sincronización de carburadores con vacuómetro y balanceo de tornillos de mezcla.`;
+  } else if (richCount > 0) {
+    reportBox.style.backgroundColor = 'rgba(255, 179, 0, 0.05)';
+    reportBox.style.borderColor = 'var(--accent-gold)';
+    reportBox.innerHTML = `<strong>Mezcla demasiado rica:</strong> Varios cilindros tienen exceso de bencina. Verifica que el filtro de aire no esté tapado o reduce las vueltas de los tornillos piloto.`;
+  } else if (leanCount > 0) {
+    reportBox.style.backgroundColor = 'rgba(224, 36, 94, 0.05)';
+    reportBox.style.borderColor = 'var(--accent-red)';
+    reportBox.innerHTML = `<strong>Mezcla peligrosa pobre:</strong> Tienes cilindros con bujías blancas. Esto aumenta la temperatura y puede derretir un pistón. Revisa posibles fugas de vacío en los O-rings de los colectores de admisión o chicleres tapados.`;
+  }
+}
+
+// 5. Gráfico de consumo por estilo de conducción
+let efficiencyStyleChart = null;
+
+function updateEfficiencyStyleChart() {
+  const canvas = document.getElementById('efficiencyStyleChart');
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  // Calculate average L/100km by style
+  const styles = ['Turismo', 'Ciudad', 'Autopista', 'Deportivo'];
+  const dataMap = { 'Turismo': [], 'Ciudad': [], 'Autopista': [], 'Deportivo': [] };
+  
+  // Sort logs by odometer to calculate individual consumptions
+  const sortedLogs = [...state.fuelLogs].sort((a, b) => a.odometer - b.odometer);
+  const initialOdo = parseInt(state.settings.initialOdo) || 0;
+  
+  for (let i = 0; i < sortedLogs.length; i++) {
+    const curr = sortedLogs[i];
+    let prevOdo = initialOdo;
+    if (i > 0) {
+      prevOdo = sortedLogs[i - 1].odometer;
+    }
+    
+    const distance = curr.odometer - prevOdo;
+    if (distance > 0 && curr.liters > 0) {
+      const consumption = (curr.liters / distance) * 100; // L/100km
+      const style = curr.type || 'Turismo';
+      if (dataMap[style]) {
+        dataMap[style].push(consumption);
+      }
+    }
+  }
+  
+  // Average values
+  const averages = styles.map(style => {
+    const arr = dataMap[style];
+    if (arr && arr.length > 0) {
+      const sum = arr.reduce((a, b) => a + b, 0);
+      return parseFloat((sum / arr.length).toFixed(1));
+    }
+    return 0; // fallback if no data
+  });
+  
+  // Check if chart exists and destroy to avoid overlay bugs
+  if (efficiencyStyleChart) {
+    efficiencyStyleChart.destroy();
+  }
+  
+  efficiencyStyleChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: styles,
+      datasets: [{
+        label: 'Promedio (L/100km)',
+        data: averages,
+        backgroundColor: [
+          'rgba(23, 191, 99, 0.4)',  // Green (Turismo)
+          'rgba(29, 161, 242, 0.4)', // Blue (Ciudad)
+          'rgba(255, 179, 0, 0.4)',  // Gold (Autopista)
+          'rgba(224, 36, 94, 0.4)'   // Red (Deportivo)
+        ],
+        borderColor: [
+          '#17bf63',
+          '#1da1f2',
+          '#ffb300',
+          '#e0245e'
+        ],
+        borderWidth: 1.5,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `Consumo: ${context.raw} L/100km`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: '#8899a6', font: { size: 9 } }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#8899a6', font: { size: 8 } },
+          beginAtZero: true
+        }
+      }
+    }
+  });
 }

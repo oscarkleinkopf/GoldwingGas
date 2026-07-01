@@ -224,6 +224,52 @@
             </div>
           </div>
           
+          <!-- Additive and Driving Style Efficiency Grid -->
+          <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 15px; margin-bottom: 15px;" id="fuel-extras-grid">
+            <!-- Fuel Additives Calculator -->
+            <div class="card data-card" style="margin-bottom: 0;">
+              <h2><i class="fa-solid fa-flask text-warning"></i> Mezcla de Aditivos (Anti-Etanol)</h2>
+              <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 10px;">La bencina moderna tiene etanol que corroe los Keihin clásicos. Calcula la dosis recomendada según tus litros cargados:</p>
+              
+              <div class="form-row" style="align-items: flex-end;">
+                <div class="form-group col-6" style="margin-bottom: 0;">
+                  <label for="additive-liters">Litros Cargados</label>
+                  <input type="number" id="additive-liters" class="form-control" placeholder="Ej: 15" value="15" min="1" max="25" step="0.1">
+                </div>
+                <div class="form-group col-6" style="margin-bottom: 0;">
+                  <label for="additive-type">Tipo de Aditivo</label>
+                  <select id="additive-type" class="form-control">
+                    <option value="stabilizer">Estabilizador (4 ml/L)</option>
+                    <option value="cleaner" selected>Limpia Carburador (5 ml/L)</option>
+                    <option value="lead">Sustituto de Plomo (2 ml/L)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="additive-calc-grid">
+                <div class="additive-item">
+                  <div style="font-size: 0.72rem; color: var(--text-muted);">Dosis Aditivo</div>
+                  <div class="value" id="additive-dose-val">75</div>
+                  <div class="unit">mililitros (ml)</div>
+                </div>
+                <div class="additive-item">
+                  <div style="font-size: 0.72rem; color: var(--text-muted);">Combustible</div>
+                  <div class="value" id="additive-fuel-val">15.0</div>
+                  <div class="unit">litros (L) de mezcla</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Driving Style Efficiency Chart -->
+            <div class="card data-card" style="margin-bottom: 0;">
+              <h2><i class="fa-solid fa-chart-bar text-warning"></i> Rendimiento por Conducción</h2>
+              <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 10px;">Comparación del consumo promedio (L/100km) según tu estilo de manejo:</p>
+              <div class="chart-wrapper" style="height: 120px; position: relative;">
+                <canvas id="efficiencyStyleChart"></canvas>
+              </div>
+            </div>
+          </div>
+          
           <!-- Table spreadsheet of logs -->
           <div class="card logs-card">
             <div class="card-header-actions">
@@ -269,6 +315,53 @@
             <h2>Estado de Mantenimiento Preventivo</h2>
             <div class="schedules-grid" id="schedules-list">
               <!-- Maintenance schedule items rendered dynamically -->
+            </div>
+          </div>
+          
+          <!-- Visual shelter guide -->
+          <div class="card shelter-card">
+            <h2>Inspección Rápida del Shelter (Estanque Falso)</h2>
+            <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 10px;">Haz clic en los puntos amarillos del diagrama de tu Goldwing para revisar y registrar inspecciones en componentes del depósito falso.</p>
+            
+            <div class="shelter-layout">
+              <div class="shelter-graphic-container">
+                <div class="shelter-graphic-body">
+                  <div class="shelter-cap-circle"></div>
+                  
+                  <!-- Radiator Hotzone -->
+                  <div class="shelter-hotzone active" id="hz-radiator" data-component="radiator" title="Nivel del Radiador">
+                    <i class="fa-solid fa-temperature-half"></i>
+                  </div>
+                  
+                  <!-- Air Filter Hotzone -->
+                  <div class="shelter-hotzone" id="hz-airfilter" data-component="airFilter" title="Filtro de Aire">
+                    <i class="fa-solid fa-wind"></i>
+                  </div>
+                  
+                  <!-- Fuses Hotzone -->
+                  <div class="shelter-hotzone" id="hz-fuses" data-component="fuses" title="Fusibles y Regulador">
+                    <i class="fa-solid fa-bolt"></i>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="shelter-info-panel">
+                <div>
+                  <h3 id="shelter-component-title">Selecciona un Componente</h3>
+                  
+                  <div class="shelter-status-badge" id="shelter-status-badge" style="display: none;">
+                    <i class="fa-solid fa-circle-check"></i> Al día
+                  </div>
+                  
+                  <div class="shelter-info-text" id="shelter-component-desc">
+                    Haz clic en cualquiera de los tres marcadores del estanque falso (Shelter) en el diagrama para ver su manual de revisión rápida, fallas típicas y registrar su última inspección.
+                  </div>
+                </div>
+                
+                <button type="button" class="btn btn-neutral" id="btn-check-shelter-component" style="display: none; width: 100%;">
+                  <i class="fa-solid fa-circle-check"></i> Registrar Inspección Realizada
+                </button>
+              </div>
             </div>
           </div>
           
@@ -378,6 +471,108 @@
             </div>
 
           </div>
+          
+          <!-- Sidebar for advanced diagnostic tools -->
+          <div class="panas-sidebar" style="display: flex; flex-direction: column; gap: 15px; width: 100%;">
+            
+            <!-- Altitude & Jetting Calculator Card -->
+            <div class="card data-card" style="margin-bottom: 0;">
+              <h2><i class="fa-solid fa-mountain text-warning"></i> Afinación y Altitud (Keihin)</h2>
+              <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px;">Los 4 carburadores Keihin originales son muy sensibles a la altura. Mueve el slider para calcular los ajustes necesarios:</p>
+              
+              <div class="altitude-calc-widget">
+                <div class="range-slider-container">
+                  <div class="range-slider-labels">
+                    <span>Costa (0m)</span>
+                    <span id="slider-alt-val" style="color: var(--accent-gold); font-weight: 700;">0 metros</span>
+                    <span>Cordillera (4000m)</span>
+                  </div>
+                  <input type="range" id="slider-altitude" min="0" max="4000" step="50" value="0" class="range-slider-input">
+                </div>
+                
+                <div class="alt-results-grid">
+                  <div class="alt-result-item">
+                    <span class="label">Mezcla (Aire)</span>
+                    <div class="value" id="alt-screw-val">1.25 vueltas</div>
+                    <span class="value-desc">Tornillo piloto</span>
+                  </div>
+                  <div class="alt-result-item">
+                    <span class="label">Potencia GL</span>
+                    <div class="value" id="alt-power-val" style="color: var(--accent-green);">80.0 HP</div>
+                    <span class="value-desc" id="alt-power-desc">100% de fábrica</span>
+                  </div>
+                </div>
+                
+                <div class="plug-diagnostic-alert" style="background-color: rgba(255, 179, 0, 0.03); border: 1px solid rgba(255, 179, 0, 0.1); margin-top: 5px; font-size: 0.8rem;" id="alt-rec-text">
+                  <strong>Recomendación:</strong> Mezcla ideal a nivel del mar. Chicleres de alta estándar (#120) funcionan óptimo.
+                </div>
+              </div>
+            </div>
+
+            <!-- Spark Plug Diagnostic Card -->
+            <div class="card data-card" style="margin-bottom: 0;">
+              <h2><i class="fa-solid fa-plug text-warning"></i> Diagnóstico de Bujías</h2>
+              <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 12px;">Examina el color de la bujía de cada cilindro para evaluar el estado de la carburación individual:</p>
+              
+              <div class="spark-plugs-layout">
+                <div class="plugs-grid">
+                  <!-- Cylinder 1 -->
+                  <div class="plug-card">
+                    <h4>Cil 1 <span style="font-size:0.7rem;color:var(--text-muted);">(Der. Del)</span></h4>
+                    <div class="plug-visual-icon plug-optimal" id="plug-icon-1"><i class="fa-solid fa-fire"></i></div>
+                    <select class="plug-select" id="select-plug-1" data-cylinder="1">
+                      <option value="optimal" selected>Café Claro</option>
+                      <option value="rich">Negro Hollín</option>
+                      <option value="oil">Negro Aceite</option>
+                      <option value="lean">Blanca / Gris</option>
+                    </select>
+                  </div>
+                  
+                  <!-- Cylinder 2 -->
+                  <div class="plug-card">
+                    <h4>Cil 2 <span style="font-size:0.7rem;color:var(--text-muted);">(Izq. Del)</span></h4>
+                    <div class="plug-visual-icon plug-optimal" id="plug-icon-2"><i class="fa-solid fa-fire"></i></div>
+                    <select class="plug-select" id="select-plug-2" data-cylinder="2">
+                      <option value="optimal" selected>Café Claro</option>
+                      <option value="rich">Negro Hollín</option>
+                      <option value="oil">Negro Aceite</option>
+                      <option value="lean">Blanca / Gris</option>
+                    </select>
+                  </div>
+                  
+                  <!-- Cylinder 3 -->
+                  <div class="plug-card">
+                    <h4>Cil 3 <span style="font-size:0.7rem;color:var(--text-muted);">(Der. Tras)</span></h4>
+                    <div class="plug-visual-icon plug-optimal" id="plug-icon-3"><i class="fa-solid fa-fire"></i></div>
+                    <select class="plug-select" id="select-plug-3" data-cylinder="3">
+                      <option value="optimal" selected>Café Claro</option>
+                      <option value="rich">Negro Hollín</option>
+                      <option value="oil">Negro Aceite</option>
+                      <option value="lean">Blanca / Gris</option>
+                    </select>
+                  </div>
+                  
+                  <!-- Cylinder 4 -->
+                  <div class="plug-card">
+                    <h4>Cil 4 <span style="font-size:0.7rem;color:var(--text-muted);">(Izq. Tras)</span></h4>
+                    <div class="plug-visual-icon plug-optimal" id="plug-icon-4"><i class="fa-solid fa-fire"></i></div>
+                    <select class="plug-select" id="select-plug-4" data-cylinder="4">
+                      <option value="optimal" selected>Café Claro</option>
+                      <option value="rich">Negro Hollín</option>
+                      <option value="oil">Negro Aceite</option>
+                      <option value="lean">Blanca / Gris</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div class="plug-diagnostic-alert" id="plug-diagnostic-report">
+                  <strong>Estado General:</strong> Motor bien balanceado. Todos los cilindros muestran una combustión ideal.
+                </div>
+              </div>
+            </div>
+            
+          </div>
+          
         </div>
       </section>
       
