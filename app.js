@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initFormListeners();
   initOcrEngine();
+  initBatchImporter();
   updateUI();
 });
 
@@ -1308,4 +1309,447 @@ function parseAndImportCSV(text) {
   } catch (err) {
     alert("Error al procesar el archivo CSV: " + err.message);
   }
+}
+
+// ==========================================
+// BATCH PROCESSING ENGINE (IMPORTACIÓN MASIVA)
+// ==========================================
+function initBatchImporter() {
+  const batchDropzone = document.getElementById('batch-dropzone');
+  const batchFileInput = document.getElementById('batch-file-input');
+  const finishBtn = document.getElementById('btn-finish-batch');
+  const closeBtn = document.getElementById('close-batch-modal');
+  
+  if (batchDropzone && batchFileInput) {
+    // Click on dropzone opens file dialog
+    batchDropzone.addEventListener('click', () => {
+      batchFileInput.click();
+    });
+    
+    // File change
+    batchFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        processBatchFiles(Array.from(e.target.files));
+      }
+    });
+    
+    // Drag/Drop
+    batchDropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      batchDropzone.style.borderColor = 'var(--accent-gold)';
+    });
+    
+    batchDropzone.addEventListener('dragleave', () => {
+      batchDropzone.style.borderColor = '#3a3f44';
+    });
+    
+    batchDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      batchDropzone.style.borderColor = '#3a3f44';
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processBatchFiles(Array.from(e.dataTransfer.files));
+      }
+    });
+  }
+  
+  if (finishBtn) {
+    finishBtn.addEventListener('click', () => {
+      saveData();
+      updateUI();
+      document.getElementById('modal-batch-process').classList.remove('open');
+      alert("¡Importación masiva completada y guardada con éxito!");
+    });
+  }
+  
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      document.getElementById('modal-batch-process').classList.remove('open');
+    });
+  }
+}
+
+// Sequential file process queue
+async function processBatchFiles(files) {
+  const modal = document.getElementById('modal-batch-process');
+  const progressBar = document.getElementById('batch-progress');
+  const countLabel = document.getElementById('batch-count-label');
+  const percentageLabel = document.getElementById('batch-percentage-label');
+  const resultsList = document.getElementById('batch-results-list');
+  const finishFooter = document.getElementById('batch-modal-footer');
+  const closeBtn = document.getElementById('close-batch-modal');
+  
+  modal.classList.add('open');
+  resultsList.innerHTML = '';
+  finishFooter.style.display = 'none';
+  closeBtn.style.display = 'none';
+  progressBar.style.width = '0%';
+  countLabel.textContent = `Preparando ${files.length} archivos...`;
+  percentageLabel.textContent = '0%';
+  
+  const total = files.length;
+  let successCount = 0;
+  
+  // Sort files: process CSVs first so that we have odometer baseline established before processing images!
+  files.sort((a, b) => {
+    const isCsvA = a.name.toLowerCase().endsWith('.csv');
+    const isCsvB = b.name.toLowerCase().endsWith('.csv');
+    if (isCsvA && !isCsvB) return -1;
+    if (!isCsvA && isCsvB) return 1;
+    return 0;
+  });
+  
+  for (let i = 0; i < total; i++) {
+    const file = files[i];
+    const itemIdx = i + 1;
+    
+    countLabel.textContent = `Procesando (${itemIdx}/${total}): ${file.name}...`;
+    
+    // Create status element in modal results
+    const statusDiv = document.createElement('div');
+    statusDiv.style.padding = '8px';
+    statusDiv.style.borderRadius = '4px';
+    statusDiv.style.backgroundColor = 'rgba(255,255,255,0.03)';
+    statusDiv.style.borderLeft = '3px solid var(--text-muted)';
+    statusDiv.innerHTML = `<strong>${file.name}</strong>: <span class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Cargando...</span>`;
+    resultsList.appendChild(statusDiv);
+    resultsList.scrollTop = resultsList.scrollHeight; // Scroll to bottom
+    
+    try {
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        // Handle CSV import
+        const csvText = await readFileAsText(file);
+        const report = parseAndMergeCSVData(csvText);
+        statusDiv.style.borderLeftColor = 'var(--accent-green)';
+        statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-green);">Éxito.</span> Se agregaron ${report.imported} registros (omitidos: ${report.duplicates} duplicados, ${report.errors} errores).`;
+        successCount++;
+      } else if (file.type.startsWith('image/')) {
+        // Handle Image OCR
+        const base64 = await readFileAsDataURL(file);
+        
+        statusDiv.innerHTML = `<strong>${file.name}</strong>: <span class="text-muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Ejecutando OCR local...</span>`;
+        
+        const ocrText = await runTesseractOCR(base64, (progress) => {
+          statusDiv.innerHTML = `<strong>${file.name}</strong>: <span class="text-muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo: ${Math.round(progress * 100)}%</span>`;
+        });
+        
+        // Classify image based on text keywords
+        const normalized = ocrText.toUpperCase();
+        const isMaint = /CORREA|DISTRIBUC|VALVUL|BUJIA|ACEITE|FILTRO|CARDAN|FRENO|PLATIN|MECANIC|REPARAC|TALLER|SERVICIO|AFINAMIENTO|REPUESTO/i.test(normalized);
+        
+        if (isMaint) {
+          // Parse as Maintenance note
+          const parsed = extractMaintOcrProperties(ocrText);
+          
+          // Save Maintenance log
+          state.maintLogs.push({
+            type: parsed.type,
+            date: parsed.date,
+            odometer: parsed.odometer,
+            cost: parsed.cost,
+            notes: ocrText.trim(),
+            image: base64
+          });
+          
+          statusDiv.style.borderLeftColor = 'var(--accent-blue)';
+          statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-blue);">[Mantenimiento]</span> ${parsed.type} - ${parsed.date ? formatDateString(parsed.date) : 'Sin fecha'} - ${parsed.odometer ? parsed.odometer.toLocaleString() + ' km' : 'Sin km'} - $${parsed.cost ? parsed.cost.toLocaleString() : '0'}`;
+        } else {
+          // Parse as Fuel receipt
+          const parsed = extractFuelOcrProperties(ocrText);
+          
+          // Check if odometer duplicate exists
+          const existingOdos = new Set(state.fuelLogs.map(l => parseInt(l.odometer)));
+          if (parsed.odometer && existingOdos.has(parsed.odometer)) {
+            statusDiv.style.borderLeftColor = 'var(--accent-gold)';
+            statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-gold);">Omitido.</span> Boleta de bencina duplicada en odómetro (${parsed.odometer.toLocaleString()} km).`;
+          } else {
+            state.fuelLogs.push({
+              date: parsed.date || new Date().toISOString().split('T')[0],
+              odometer: parsed.odometer || (state.fuelLogs.length > 0 ? Math.max(...state.fuelLogs.map(l => l.odometer)) : parseInt(state.settings.initialOdo)),
+              liters: parsed.liters || 15.0,
+              cost: parsed.cost || 16000,
+              type: 'Turismo',
+              station: parsed.station || 'Gasolinera Detectada',
+              notes: 'Importado de foto antigua',
+              image: base64
+            });
+            
+            statusDiv.style.borderLeftColor = 'var(--accent-green)';
+            statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-green);">[Bencina]</span> ${parsed.date ? formatDateString(parsed.date) : 'Hoy'} - ${parsed.liters ? parsed.liters + ' L' : '15 L'} - ${parsed.odometer ? parsed.odometer.toLocaleString() + ' km' : 'Sin km'} - $${parsed.cost ? parsed.cost.toLocaleString() : '0'}`;
+          }
+        }
+        successCount++;
+      } else {
+        statusDiv.style.borderLeftColor = 'var(--accent-red)';
+        statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-red);">Omitido.</span> Formato no soportado.`;
+      }
+    } catch (err) {
+      console.error(err);
+      statusDiv.style.borderLeftColor = 'var(--accent-red)';
+      statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-red);">Error:</span> ${err.message}`;
+    }
+    
+    // Update progress
+    const pct = Math.round((itemIdx / total) * 100);
+    progressBar.style.width = `${pct}%`;
+    percentageLabel.textContent = `${pct}%`;
+  }
+  
+  countLabel.textContent = `Proceso finalizado. ${successCount} exitosos de ${total} archivos.`;
+  finishFooter.style.display = 'block';
+  closeBtn.style.display = 'block';
+}
+
+// Promise wrapper for reading files
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (err) => reject(err);
+    reader.readAsText(file);
+  });
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Promise wrapper for Tesseract recognize
+function runTesseractOCR(base64, progressCallback) {
+  return new Promise((resolve, reject) => {
+    Tesseract.recognize(
+      base64,
+      'spa',
+      {
+        logger: m => {
+          if (m.status === 'recognizing') {
+            progressCallback(m.progress);
+          }
+        }
+      }
+    ).then(({ data: { text } }) => {
+      resolve(text);
+    }).catch(err => {
+      reject(err);
+    });
+  });
+}
+
+// Helper: format YYYY-MM-DD to DD/MM/YYYY
+function formatDateString(str) {
+  const pts = str.split('-');
+  if (pts.length === 3) {
+    return `${pts[2]}/${pts[1]}/${pts[0]}`;
+  }
+  return str;
+}
+
+// Helper parser to merge CSV and return counts
+function parseAndMergeCSVData(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length < 2) return { imported: 0, duplicates: 0, errors: lines.length };
+  
+  const header = lines[0];
+  let sep = ';';
+  if (header.includes(',')) {
+    if (header.includes(';')) sep = ';';
+    else sep = ',';
+  }
+  
+  const headers = header.split(sep).map(h => h.trim().toLowerCase().replace(/\"/g, ''));
+  
+  let dateIdx = headers.findIndex(h => h.includes('fech') || h.includes('date'));
+  let odoIdx = headers.findIndex(h => h.includes('kilomet') || h.includes('odo') || h.includes('km'));
+  let litersIdx = headers.findIndex(h => h.includes('litr') || h.includes('cant') || h.includes('vol'));
+  let costIdx = headers.findIndex(h => h.includes('cost') || h.includes('tot') || h.includes('prec') || h.includes('val'));
+  let typeIdx = headers.findIndex(h => h.includes('tipo') || h.includes('modo') || h.includes('style'));
+  let notesIdx = headers.findIndex(h => h.includes('not') || h.includes('coment') || h.includes('detall'));
+  
+  if (dateIdx === -1 || odoIdx === -1 || litersIdx === -1 || costIdx === -1) {
+    return { imported: 0, duplicates: 0, errors: lines.length - 1 };
+  }
+  
+  let imported = 0;
+  let duplicates = 0;
+  let errors = 0;
+  
+  const existingOdos = new Set(state.fuelLogs.map(l => parseInt(l.odometer)));
+  
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i].split(sep).map(c => c.trim().replace(/\"/g, ''));
+    if (row.length < Math.max(dateIdx, odoIdx, litersIdx, costIdx) + 1) {
+      errors++;
+      continue;
+    }
+    
+    const rawDate = row[dateIdx];
+    const rawOdo = row[odoIdx];
+    const rawLiters = row[litersIdx];
+    const rawCost = row[costIdx];
+    
+    let parsedDate = '';
+    if (rawDate) {
+      const dateMatch = rawDate.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/);
+      if (dateMatch) {
+        parsedDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
+      } else {
+        const dateMatch2 = rawDate.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{2,4})/);
+        if (dateMatch2) {
+          let day = dateMatch2[1];
+          let month = dateMatch2[2];
+          let year = dateMatch2[3];
+          if (year.length === 2) year = '20' + year;
+          parsedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+      }
+    }
+    
+    const odometer = parseInt(rawOdo);
+    const liters = parseFloat(rawLiters.replace(',', '.'));
+    const cost = parseInt(rawCost.replace(/[\$\s\.]/g, ''));
+    
+    if (!parsedDate || isNaN(odometer) || isNaN(liters) || isNaN(cost)) {
+      errors++;
+      continue;
+    }
+    
+    if (existingOdos.has(odometer)) {
+      duplicates++;
+      continue;
+    }
+    
+    const type = typeIdx !== -1 && row[typeIdx] ? row[typeIdx] : 'Turismo';
+    const notes = notesIdx !== -1 && row[notesIdx] ? row[notesIdx] : '';
+    
+    state.fuelLogs.push({
+      date: parsedDate,
+      odometer: odometer,
+      liters: liters,
+      cost: cost,
+      type: type,
+      station: '',
+      notes: notes,
+      image: ''
+    });
+    
+    existingOdos.add(odometer);
+    imported++;
+  }
+  
+  return { imported, duplicates, errors };
+}
+
+// Extraction helpers for OCR
+function extractMaintOcrProperties(text) {
+  const normalized = text.toUpperCase().replace(/\s+/g, ' ');
+  
+  let date = '';
+  const dateMatch = normalized.match(/\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})\b/);
+  if (dateMatch) {
+    let day = dateMatch[1];
+    let month = dateMatch[2];
+    let year = dateMatch[3];
+    if (day.length === 1) day = '0' + day;
+    if (month.length === 1) month = '0' + month;
+    if (year.length === 2) year = '20' + year;
+    date = `${year}-${month}-${day}`;
+  }
+  
+  let odometer = 0;
+  const odoMatch = [...normalized.matchAll(/\b(\d{5,6})\b/g)];
+  let highestOdo = state.fuelLogs.length > 0 ? Math.max(...state.fuelLogs.map(l => l.odometer)) : parseInt(state.settings.initialOdo);
+  for (const m of odoMatch) {
+    const val = parseInt(m[1]);
+    if (val >= highestOdo && val < highestOdo + 5000) {
+      odometer = val;
+      break;
+    }
+  }
+  if (!odometer && odoMatch.length > 0) {
+    odometer = parseInt(odoMatch[0][1]);
+  }
+  
+  let cost = 0;
+  const priceMatch = normalized.match(/(?:TOTAL|PAGO|NETO|\$|PESOS|VALOR|COSTO)\s*[:\.]?\s*(\d{3,6})\b/);
+  if (priceMatch) {
+    cost = parseInt(priceMatch[1]);
+  } else {
+    const numMatches = [...normalized.matchAll(/\b(\d{4,6})\b/g)];
+    for (const m of numMatches) {
+      const val = parseInt(m[1]);
+      if (val >= 2000 && val <= 150000 && val !== odometer) {
+        cost = val;
+        break;
+      }
+    }
+  }
+  
+  // Classify maintenance type
+  let type = 'Otro';
+  if (/CORREA/i.test(normalized)) type = 'Correas de Distribución';
+  else if (/SINCRONIZ|CARBURAD/i.test(normalized)) type = 'Sincronización Carburadores';
+  else if (/VALVUL/i.test(normalized)) type = 'Ajuste de Válvulas';
+  else if (/ACEITE|FILTRO/i.test(normalized)) type = 'Cambio de Aceite y Filtro';
+  else if (/CARDAN|DIFERENC/i.test(normalized)) type = 'Aceite Transmisión Final';
+  else if (/PLATIN|BUJIA/i.test(normalized)) type = 'Platinos y Bujías';
+  else if (/FRENO/i.test(normalized)) type = 'Frenos / Líquido';
+  else if (/NEUMAT/i.test(normalized)) type = 'Neumáticos';
+  else if (/BATER|ELECTR/i.test(normalized)) type = 'Batería / Eléctrico';
+  
+  return { date, odometer, cost, type };
+}
+
+function extractFuelOcrProperties(text) {
+  const normalized = text.toUpperCase().replace(/\s+/g, ' ');
+  
+  let date = '';
+  const dateMatch = normalized.match(/\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})\b/);
+  if (dateMatch) {
+    let day = dateMatch[1];
+    let month = dateMatch[2];
+    let year = dateMatch[3];
+    if (day.length === 1) day = '0' + day;
+    if (month.length === 1) month = '0' + month;
+    if (year.length === 2) year = '20' + year;
+    date = `${year}-${month}-${day}`;
+  }
+  
+  let odometer = 0;
+  const odoMatch = [...normalized.matchAll(/\b(\d{5,6})\b/g)];
+  let highestOdo = state.fuelLogs.length > 0 ? Math.max(...state.fuelLogs.map(l => l.odometer)) : parseInt(state.settings.initialOdo);
+  for (const m of odoMatch) {
+    const val = parseInt(m[1]);
+    if (val >= highestOdo && val < highestOdo + 5000) {
+      odometer = val;
+      break;
+    }
+  }
+  if (!odometer && odoMatch.length > 0) {
+    odometer = parseInt(odoMatch[0][1]);
+  }
+  
+  let liters = 0;
+  const litersMatch = normalized.match(/(\d{1,2}[\.,]\d{1,2})\s*(?:L|LTS|LITROS|LTR|G|GLS)/);
+  if (litersMatch) {
+    liters = parseFloat(litersMatch[1].replace(',', '.'));
+  }
+  
+  let cost = 0;
+  const priceMatch = normalized.match(/(?:TOTAL|PAGO|NETO|\$|PESOS|VALOR|COSTO)\s*[:\.]?\s*(\d{3,6})\b/);
+  if (priceMatch) {
+    cost = parseInt(priceMatch[1]);
+  }
+  
+  // Classify station
+  let station = 'Gasolinera';
+  if (/COPEC/i.test(normalized)) station = 'Copec';
+  else if (/SHELL/i.test(normalized)) station = 'Shell';
+  else if (/PETROBRAS/i.test(normalized)) station = 'Petrobras';
+  else if (/TERPEL/i.test(normalized)) station = 'Terpel';
+  
+  return { date, odometer, liters, cost, station };
 }

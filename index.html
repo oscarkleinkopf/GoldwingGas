@@ -450,6 +450,17 @@
             </button>
           </div>
           
+          <div class="card data-card" id="batch-import-card">
+            <h2><i class="fa-solid fa-folder-open text-warning"></i> Importación Inteligente Masiva</h2>
+            <p>Sube una carpeta completa o selecciona múltiples archivos a la vez (boletas antiguas, notas escritas a mano, planillas CSV). La app las clasificará y ordenará de forma automática usando OCR local.</p>
+            
+            <div class="ocr-upload-area" id="batch-dropzone" style="margin-top: 15px;">
+              <i class="fa-solid fa-folder-plus upload-icon" style="font-size: 2.5rem; color: var(--accent-gold);"></i>
+              <span class="upload-text">Arrastra aquí tus archivos/carpetas o haz clic para seleccionar</span>
+              <input type="file" id="batch-file-input" multiple accept="image/*, .csv" style="display: none;">
+            </div>
+          </div>
+          
           <div class="card help-card">
             <h2>Sobre la Goldwing GL-1000</h2>
             <p>La <strong>Honda GL1000 Gold Wing</strong> original revolucionó el mototurismo en 1975 con su motor bóxer de 4 cilindros refrigerado por agua de 999cc y transmisión por eje cardán. Al ser una moto clásica, el mantenimiento periódico (especialmente el cambio de correas de distribución y la sincronización de sus 4 carburadores Keihin) es crucial para evitar fallas catastróficas.</p>
@@ -661,6 +672,40 @@
       </div>
       <div class="modal-body text-center">
         <img src="" id="viewer-img" style="max-width: 100%; max-height: 70vh; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL: BATCH PROCESSOR -->
+  <div class="modal" id="modal-batch-process">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-gears fa-spin text-warning"></i> Importación Masiva en Progreso</h2>
+        <span class="close-modal" id="close-batch-modal" style="display: none;">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted">Procesando y clasificando archivos de forma local con OCR...</p>
+        
+        <!-- Batch progress bar -->
+        <div class="progress-bar-container" style="background-color: rgba(255,255,255,0.05); height: 12px; border-radius: 6px; overflow: hidden; margin: 15px 0;">
+          <div id="batch-progress" style="background-color: var(--accent-gold); width: 0%; height: 100%; transition: width 0.3s ease;"></div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700; margin-bottom: 15px;">
+          <span id="batch-count-label">Procesando 0 de 0 archivos...</span>
+          <span id="batch-percentage-label">0%</span>
+        </div>
+        
+        <hr>
+        
+        <!-- Processed logs list -->
+        <div id="batch-results-list" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-top: 15px; font-size: 0.85rem;">
+          <!-- Items will be appended here dynamically -->
+        </div>
+        
+        <div class="modal-footer" id="batch-modal-footer" style="display: none; padding-top: 15px; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05);">
+          <button type="button" class="btn btn-primary" id="btn-finish-batch">Finalizar y Guardar</button>
+        </div>
       </div>
     </div>
   </div>
