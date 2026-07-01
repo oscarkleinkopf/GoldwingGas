@@ -201,17 +201,19 @@ function calculateStats() {
     totalFuel = state.fuelLogs.reduce((sum, log) => sum + parseFloat(log.liters || 0), 0);
     totalCost = state.fuelLogs.reduce((sum, log) => sum + parseFloat(log.cost || 0), 0);
     
-    // Total Distance traveled from initial odo
-    const minFuelOdo = Math.min(...state.fuelLogs.map(l => l.odometer));
+    // Total Distance traveled from initial odo (filtering out 0 values)
+    const nonZeroOdos = state.fuelLogs.map(l => l.odometer).filter(o => o > 0);
+    const minFuelOdo = nonZeroOdos.length > 0 ? Math.min(...nonZeroOdos) : initialOdo;
     const maxFuelOdoVal = Math.max(...state.fuelLogs.map(l => l.odometer));
     
-    if (minFuelOdo > initialOdo) {
+    if (minFuelOdo > initialOdo && initialOdo > 0) {
       totalDist = maxFuelOdoVal - initialOdo;
     } else {
       totalDist = maxFuelOdoVal - minFuelOdo;
     }
   } else if (state.maintLogs.length > 0) {
-    currentOdo = Math.max(...state.maintLogs.map(l => l.odometer), initialOdo);
+    const nonZeroMaintOdos = state.maintLogs.map(l => l.odometer).filter(o => o > 0);
+    currentOdo = nonZeroMaintOdos.length > 0 ? Math.max(...nonZeroMaintOdos, initialOdo) : initialOdo;
     totalDist = currentOdo - initialOdo;
   }
   
@@ -220,12 +222,28 @@ function calculateStats() {
   let efficiencyCounts = 0;
   
   for (let i = 0; i < state.fuelLogs.length; i++) {
-    let prevOdo = initialOdo;
-    if (i > 0) {
-      prevOdo = state.fuelLogs[i - 1].odometer;
+    const currentOdoVal = state.fuelLogs[i].odometer;
+    if (currentOdoVal === 0) {
+      state.fuelLogs[i].efficiency = null;
+      continue;
     }
     
-    const dist = state.fuelLogs[i].odometer - prevOdo;
+    // Find the last record with a non-zero odometer reading
+    let prevOdo = initialOdo;
+    for (let j = i - 1; j >= 0; j--) {
+      if (state.fuelLogs[j].odometer > 0) {
+        prevOdo = state.fuelLogs[j].odometer;
+        break;
+      }
+    }
+    
+    // If the previous non-zero odo is same as initialOdo and initialOdo is 0, we can't calculate efficiency
+    if (prevOdo === 0) {
+      state.fuelLogs[i].efficiency = null;
+      continue;
+    }
+    
+    const dist = currentOdoVal - prevOdo;
     if (dist > 0 && state.fuelLogs[i].liters > 0) {
       const eff = dist / state.fuelLogs[i].liters; // km/L
       state.fuelLogs[i].efficiency = eff;
@@ -709,11 +727,15 @@ function initFormListeners() {
   
   // Clear/Reset Data
   document.getElementById('btn-reset-data').addEventListener('click', () => {
-    if (confirm('¿Estás seguro de que deseas borrar por completo todo el historial? Esta acción no se puede deshacer.')) {
-      localStorage.removeItem('goldwing_gas_state');
-      seedState();
+    if (confirm('¿Estás seguro de que deseas borrar por completo todo el historial? Esta acción vaciará la base de datos para que puedas importar tus propios datos.')) {
+      state.fuelLogs = [];
+      state.maintLogs = [];
+      state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
+      state.settings.initialOdo = 0;
+      
+      saveData();
       updateUI();
-      alert('Se han borrado todos los registros y se ha restaurado la demostración.');
+      alert('Se han borrado todos los registros. La base de datos está vacía y lista para importar tu planilla.');
     }
   });
 }
@@ -1217,19 +1239,82 @@ function parseMaintOcrResults(text) {
   alertText.innerHTML = `<strong>Lectura de Nota Finalizada:</strong><br>` + alertContent.join('<br>') + `<br><small class="text-muted" style="display:block; margin-top:5px;">Por favor, revisa y edita el texto copiado abajo si el mecánico tiene letra difícil.</small>`;
 }
 
+// Parse date strings from spreadsheet files (handles verbal month names)
+function parseExcelDate(rawDate) {
+  if (!rawDate) return '';
+  const dateStr = rawDate.trim();
+  
+  // 1. Try standard YYYY-MM-DD
+  let match = dateStr.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/);
+  if (match) {
+    return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+  }
+  
+  // 2. Try standard DD/MM/YYYY or DD-MM-YYYY
+  match = dateStr.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{2,4})/);
+  if (match) {
+    let day = match[1];
+    let month = match[2];
+    let year = match[3];
+    if (year.length === 2) year = '20' + year;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  // 3. Try verbal dates like 14-Nov-2023, 3-Jan-2024, 22-Sep-2025
+  const months = {
+    'jan': '01', 'ene': '01',
+    'feb': '02',
+    'mar': '03',
+    'apr': '04', 'abr': '04',
+    'may': '05',
+    'jun': '06',
+    'jul': '07',
+    'aug': '08', 'ago': '08',
+    'sep': '09',
+    'oct': '10',
+    'nov': '11',
+    'dec': '12', 'dic': '12'
+  };
+  
+  match = dateStr.match(/^(\d{1,2})[\s\-\/]([a-zA-Z]{3,4})[\s\-\/](\d{2,4})/i);
+  if (match) {
+    let day = match[1].padStart(2, '0');
+    let monthName = match[2].toLowerCase().substring(0, 3);
+    let year = match[3];
+    if (year.length === 2) year = '20' + year;
+    
+    let month = months[monthName];
+    if (month) {
+      return `${year}-${month}-${day}`;
+    }
+  }
+  
+  // 4. Try JS Date constructor fallback
+  try {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split('T')[0];
+    }
+  } catch(e) {}
+  
+  return '';
+}
+
 // Parse and import CSV spreadsheet files from Excel
 function parseAndImportCSV(text) {
   try {
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length < 2) {
-      alert("El archivo CSV está vacío o no contiene registros.");
+      alert("El archivo está vacío o no contiene registros.");
       return;
     }
     
-    // Detect separator: comma or semicolon
+    // Detect separator: comma, semicolon or tab
     const header = lines[0];
     let sep = ';';
-    if (header.includes(',')) {
+    if (header.includes('\t')) {
+      sep = '\t';
+    } else if (header.includes(',')) {
       if (header.includes(';')) {
         sep = ';';
       } else {
@@ -1238,18 +1323,18 @@ function parseAndImportCSV(text) {
     }
     
     const headers = header.split(sep).map(h => h.trim().toLowerCase().replace(/\"/g, ''));
-    console.log("CSV Headers detected:", headers);
+    console.log("Headers detected:", headers);
     
     // Map header indices
     let dateIdx = headers.findIndex(h => h.includes('fech') || h.includes('date'));
-    let odoIdx = headers.findIndex(h => h.includes('kilomet') || h.includes('odo') || h.includes('km'));
-    let litersIdx = headers.findIndex(h => h.includes('litr') || h.includes('cant') || h.includes('vol'));
+    let odoIdx = headers.findIndex(h => h.includes('kilomet') || h.includes('odo') || h.includes('read') || h.includes('km'));
+    let litersIdx = headers.findIndex(h => h.includes('litr') || h.includes('cant') || h.includes('vol') || h.includes('add'));
     let costIdx = headers.findIndex(h => h.includes('cost') || h.includes('tot') || h.includes('prec') || h.includes('val'));
     let typeIdx = headers.findIndex(h => h.includes('tipo') || h.includes('modo') || h.includes('style'));
     let notesIdx = headers.findIndex(h => h.includes('not') || h.includes('coment') || h.includes('detall'));
     
     if (dateIdx === -1 || odoIdx === -1 || litersIdx === -1 || costIdx === -1) {
-      alert("No pudimos encontrar todas las columnas requeridas (Fecha, Kilometraje, Litros, Costo). Verifica las cabeceras del CSV.");
+      alert("No pudimos encontrar todas las columnas requeridas (Fecha, Kilometraje, Litros, Costo). Verifica las cabeceras de la planilla.");
       return;
     }
     
@@ -1271,33 +1356,19 @@ function parseAndImportCSV(text) {
       const rawLiters = row[litersIdx];
       const rawCost = row[costIdx];
       
-      let parsedDate = '';
-      if (rawDate) {
-        const dateMatch = rawDate.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/);
-        if (dateMatch) {
-          parsedDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
-        } else {
-          const dateMatch2 = rawDate.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{2,4})/);
-          if (dateMatch2) {
-            let day = dateMatch2[1];
-            let month = dateMatch2[2];
-            let year = dateMatch2[3];
-            if (year.length === 2) year = '20' + year;
-            parsedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-          }
-        }
-      }
+      let parsedDate = parseExcelDate(rawDate);
       
-      const odometer = parseInt(rawOdo);
-      const liters = parseFloat(rawLiters.replace(',', '.'));
-      const cost = parseInt(rawCost.replace(/[\$\s\.]/g, ''));
+      const odometer = parseInt(rawOdo) || 0;
+      const liters = parseFloat(rawLiters.replace(/[^\d\.,]/g, '').replace(',', '.'));
+      const cost = parseInt(rawCost.replace(/[^\d]/g, ''));
       
       if (!parsedDate || isNaN(odometer) || isNaN(liters) || isNaN(cost)) {
         errorCount++;
         continue;
       }
       
-      if (existingOdos.has(odometer)) {
+      // If odometer is 0, ignore duplicate checks (multiple 0 odometers are allowed)
+      if (odometer > 0 && existingOdos.has(odometer)) {
         duplicateCount++;
         continue;
       }
@@ -1316,11 +1387,21 @@ function parseAndImportCSV(text) {
         image: ''
       });
       
-      existingOdos.add(odometer);
+      if (odometer > 0) {
+        existingOdos.add(odometer);
+      }
       importedCount++;
     }
     
     if (importedCount > 0) {
+      const currentInitialOdo = parseInt(state.settings.initialOdo) || 0;
+      if (currentInitialOdo === 0 && state.fuelLogs.length > 0) {
+        // Filter out 0 values for initial odometer calculation
+        const nonZeroOdos = state.fuelLogs.map(l => l.odometer).filter(o => o > 0);
+        if (nonZeroOdos.length > 0) {
+          state.settings.initialOdo = Math.min(...nonZeroOdos);
+        }
+      }
       saveData();
       updateUI();
     }
@@ -1383,6 +1464,10 @@ function initBatchImporter() {
   
   if (finishBtn) {
     finishBtn.addEventListener('click', () => {
+      const currentInitialOdo = parseInt(state.settings.initialOdo) || 0;
+      if (currentInitialOdo === 0 && state.fuelLogs.length > 0) {
+        state.settings.initialOdo = Math.min(...state.fuelLogs.map(l => l.odometer));
+      }
       saveData();
       updateUI();
       document.getElementById('modal-batch-process').classList.remove('open');
@@ -1584,7 +1669,9 @@ function parseAndMergeCSVData(text) {
   
   const header = lines[0];
   let sep = ';';
-  if (header.includes(',')) {
+  if (header.includes('\t')) {
+    sep = '\t';
+  } else if (header.includes(',')) {
     if (header.includes(';')) sep = ';';
     else sep = ',';
   }
@@ -1592,8 +1679,8 @@ function parseAndMergeCSVData(text) {
   const headers = header.split(sep).map(h => h.trim().toLowerCase().replace(/\"/g, ''));
   
   let dateIdx = headers.findIndex(h => h.includes('fech') || h.includes('date'));
-  let odoIdx = headers.findIndex(h => h.includes('kilomet') || h.includes('odo') || h.includes('km'));
-  let litersIdx = headers.findIndex(h => h.includes('litr') || h.includes('cant') || h.includes('vol'));
+  let odoIdx = headers.findIndex(h => h.includes('kilomet') || h.includes('odo') || h.includes('read') || h.includes('km'));
+  let litersIdx = headers.findIndex(h => h.includes('litr') || h.includes('cant') || h.includes('vol') || h.includes('add'));
   let costIdx = headers.findIndex(h => h.includes('cost') || h.includes('tot') || h.includes('prec') || h.includes('val'));
   let typeIdx = headers.findIndex(h => h.includes('tipo') || h.includes('modo') || h.includes('style'));
   let notesIdx = headers.findIndex(h => h.includes('not') || h.includes('coment') || h.includes('detall'));
@@ -1620,33 +1707,18 @@ function parseAndMergeCSVData(text) {
     const rawLiters = row[litersIdx];
     const rawCost = row[costIdx];
     
-    let parsedDate = '';
-    if (rawDate) {
-      const dateMatch = rawDate.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})/);
-      if (dateMatch) {
-        parsedDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
-      } else {
-        const dateMatch2 = rawDate.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{2,4})/);
-        if (dateMatch2) {
-          let day = dateMatch2[1];
-          let month = dateMatch2[2];
-          let year = dateMatch2[3];
-          if (year.length === 2) year = '20' + year;
-          parsedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        }
-      }
-    }
+    let parsedDate = parseExcelDate(rawDate);
     
-    const odometer = parseInt(rawOdo);
-    const liters = parseFloat(rawLiters.replace(',', '.'));
-    const cost = parseInt(rawCost.replace(/[\$\s\.]/g, ''));
+    const odometer = parseInt(rawOdo) || 0;
+    const liters = parseFloat(rawLiters.replace(/[^\d\.,]/g, '').replace(',', '.'));
+    const cost = parseInt(rawCost.replace(/[^\d]/g, ''));
     
     if (!parsedDate || isNaN(odometer) || isNaN(liters) || isNaN(cost)) {
       errors++;
       continue;
     }
     
-    if (existingOdos.has(odometer)) {
+    if (odometer > 0 && existingOdos.has(odometer)) {
       duplicates++;
       continue;
     }
@@ -1665,7 +1737,9 @@ function parseAndMergeCSVData(text) {
       image: ''
     });
     
-    existingOdos.add(odometer);
+    if (odometer > 0) {
+      existingOdos.add(odometer);
+    }
     imported++;
   }
   
