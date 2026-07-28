@@ -1,0 +1,22 @@
+# Dependencias de desarrollo / sistema
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*~
+
+# Editores
+.idea/
+.vscode/
+*.code-workspace
+
+# Entornos locales
+.env
+.env.*
+.netlify/
+
+# Artefactos opcionales futuros
+node_modules/
+dist/
+coverage/
+.cache/

@@ -1,0 +1,108 @@
+# Desarrollo — GoldwingGas
+
+## Requisitos
+
+- Navegador moderno (Chrome, Firefox, Safari, Edge).
+- Editor cualquiera; no hay toolchain obligatorio.
+- Opcional: Python 3 o Node para servir estáticos (recomendado para OCR/cámara).
+
+## Arranque local
+
+```bash
+git clone https://github.com/oscarkleinkopf/GoldwingGas.git
+cd GoldwingGas
+python -m http.server 8080
+# → http://localhost:8080
+```
+
+Abre DevTools → Application → Local Storage para inspeccionar `goldwing_gas_state`.
+
+### Borrar estado de prueba
+
+Consola:
+
+```js
+localStorage.removeItem('goldwing_gas_state');
+location.reload();
+```
+
+O usa **Ajustes → borrar historial** (deja logs vacíos, no re-seed).
+
+## Convenciones de código
+
+- **Idioma UI:** español (Chile / LATAM): “bencina”, “odómetro”, “panas”.
+- **JS:** funciones por nombre + un `state` global; sin módulos ES ni TypeScript por ahora.
+- **IDs HTML:** kebab-case (`fuel-odo`, `btn-export-data`). Mantén sincronía con `getElementById` en `app.js`.
+- **CSS:** preferir variables de `:root`; clases semánticas existentes (`.card`, `.btn-primary`, …).
+- **Comentarios:** solo donde la intención no sea obvia (parsers OCR, CSV edge cases).
+
+### Orden recomendado al editar una feature
+
+1. Markup en `index.html` (sección del tab o modal).
+2. Estilos en `style.css` si hace falta.
+3. Lógica / listeners en `app.js`.
+4. Persistencia: ¿entra en `state`? → actualizar `DATA_MODEL.md` + fallback en `loadData`.
+5. Probar: seed → CRUD → export → import → reload.
+
+## Cómo agregar una pestaña nueva
+
+1. Botón en `<nav class="app-nav">` con `data-tab="tab-xxx"` e `id="tab-btn-xxx"`.
+2. `<section id="tab-xxx" class="tab-pane">…</section>`.
+3. Si necesita init, llámalo desde `DOMContentLoaded`.
+4. Si debe refrescar al mostrarse, engancha en el click de `initTabs` (como el chart de bencina).
+
+## Cómo agregar un campo al estado
+
+```js
+// 1. Default al declarar state / seedState
+state.settings.nuevoCampo = valorDefault;
+
+// 2. loadData — migración
+if (state.settings.nuevoCampo === undefined) {
+  state.settings.nuevoCampo = valorDefault;
+}
+
+// 3. UI: leer/escribir en updateUI + form listener
+// 4. Documentar en docs/DATA_MODEL.md
+```
+
+## Cómo extender el OCR
+
+1. Reproduce el caso con una imagen real (boleta chilena, odómetro, etc.).
+2. Ajusta regex en `extractFuelOcrProperties` / `parseOcrResults` (o mantención).
+3. No asumas un solo layout de boleta; prioriza patrones tolerantes.
+4. Deja el resultado pre-rellenado pero editable.
+
+## Cómo tocar el import CSV
+
+- Lógica central: `parseAndImportCSV` / `parseAndMergeCSVData`.
+- Fechas: `parseExcelDate`.
+- Tras cambios, prueba: `;`, `,`, TSV, fechas verbales, odómetro 0, duplicados.
+- Actualiza la plantilla del botón `btn-download-csv-template` si cambian columnas.
+
+## Debugging útil
+
+| Problema | Dónde mirar |
+|----------|-------------|
+| Luces siempre verdes/rojas | `updateMaintenanceStatus`, tipos exactos de `maintLogs` |
+| Chart vacío | Tab Bencina activo + `renderFuelChart`; datos con ≥2 puntos útiles |
+| OCR no rellena | Consola + texto crudo de Tesseract; regex en parsers |
+| Import “columnas no encontradas” | Headers detectados (`console.log` en CSV) |
+| Odómetro raro | `initialOdo`, logs con `odometer: 0`, `calculateStats` |
+
+## Sin tests automatizados (aún)
+
+Validación manual mínima antes de merge:
+
+1. Carga inicial con seed.
+2. Alta / edición / borrado de bencina y mantención.
+3. Cambio de settings y reload (persistencia).
+4. Export JSON → clear storage → import JSON.
+5. Import CSV plantilla.
+6. (Si tocaste OCR) una foto de prueba.
+
+Cuando se añadan tests, documentar el comando aquí (ver ROADMAP).
+
+## Deploy
+
+Push a `main` → GitHub Pages regenera el sitio. No hay secrets ni variables de entorno.
