@@ -11,8 +11,10 @@ SPA **vanilla** (HTML/CSS/JS) para tracking de combustible y mantenimiento de Ho
 | Archivo | Rol |
 |---------|-----|
 | `index.html` | UI y CDNs |
-| `app.js` | Toda la lógica |
+| `app.js` | Toda la lógica (+ PWA install) |
 | `style.css` | Tema vintage (`:root`) |
+| `manifest.webmanifest` / `sw.js` | App instalable (Android sin Play) |
+| `assets/` | Arte de dedicatoria + iconos |
 | `docs/*` | Arquitectura, datos, roadmap |
 
 ## Reglas al cambiar código

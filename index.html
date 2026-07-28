@@ -2,8 +2,20 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Bitácora de bencina y mantenimiento para Honda Goldwing GL-1000. Datos locales, OCR en el navegador.">
+  <meta name="theme-color" content="#0b0d0e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GoldwingGas">
   <title>GoldwingGas - GL-1000 Tracker</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   
   <!-- Google Fonts: Montserrat (Clean text) & Orbitron (Digital gauges) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,12 +40,14 @@
     <!-- Top Header -->
     <header class="app-header">
       <div class="header-logo">
-        <svg class="honda-wing" viewBox="0 0 100 60" width="50" height="30">
-          <!-- Stylized vintage Honda wing logo -->
-          <path d="M5,45 C20,40 35,28 65,15 C75,11 88,5 95,8 C96,9 95,12 90,16 C80,24 60,35 40,43 C25,49 12,50 5,45 Z" fill="#d32f2f" />
-          <path d="M12,41 C25,37 38,27 63,16 C70,13 80,8 86,10 C87,11 85,13 81,16 C73,22 56,31 40,38 C28,43 18,44 12,41 Z" fill="#ffb300" />
-          <path d="M18,37 C28,34 38,26 58,17 C64,14 72,11 76,12 C77,13 75,15 72,17 C65,22 52,29 38,34 C28,38 22,39 18,37 Z" fill="#ffffff" />
-        </svg>
+        <img
+          class="header-art"
+          src="assets/goldwing-art-card.jpg"
+          width="56"
+          height="56"
+          alt="GoldwingGas"
+          decoding="async"
+        >
         <div class="header-titles">
           <h1>GoldwingGas</h1>
           <p class="model-badge">GL-1000 Classic (<span id="model-year-display">1978</span>)</p>
@@ -656,10 +670,30 @@
             </div>
           </div>
           
-          <div class="card help-card">
+          <div class="card help-card" id="card-install-pwa">
+            <h2><i class="fa-solid fa-mobile-screen-button"></i> Instalar en el teléfono</h2>
+            <p>GoldwingGas es una app instalable (PWA). En Android, ábrela en <strong>Chrome</strong> y elige <strong>Instalar app</strong> o <strong>Añadir a la pantalla de inicio</strong>. Queda como icono a pantalla completa, sin Google Play.</p>
+            <p class="text-muted" id="pwa-install-status">Si ya está instalada, puedes abrirla desde el icono GoldwingGas.</p>
+            <button type="button" class="btn btn-primary" id="btn-install-pwa" style="display: none; margin-top: 10px;">
+              <i class="fa-solid fa-download"></i> Instalar GoldwingGas
+            </button>
+          </div>
+
+          <div class="card help-card dedication-card">
+            <figure class="dedication-art">
+              <img
+                src="assets/goldwing-art.jpg"
+                alt="Pareja en Honda Goldwing — dedicatoria"
+                width="800"
+                height="800"
+                loading="lazy"
+                decoding="async"
+              >
+            </figure>
             <h2>Sobre la Goldwing GL-1000</h2>
             <p>La <strong>Honda GL1000 Gold Wing</strong> original revolucionó el mototurismo en 1975 con su motor bóxer de 4 cilindros refrigerado por agua de 999cc y transmisión por eje cardán. Al ser una moto clásica, el mantenimiento periódico (especialmente el cambio de correas de distribución y la sincronización de sus 4 carburadores Keihin) es crucial para evitar fallas catastróficas.</p>
             <p class="signature">Creado con pasión para entusiastas de las clásicas de dos ruedas.</p>
+            <p class="dedication-line">Dedicado a Victor Kleinkopf (Z.L.)</p>
           </div>
           
         </div>
@@ -668,7 +702,8 @@
     </main>
     
     <footer class="app-footer">
-      Dedicado a Victor Kleinkopf (Z.L.)
+      <img class="footer-art" src="assets/goldwing-art-card.jpg" width="40" height="40" alt="" decoding="async">
+      <span>Dedicado a Victor Kleinkopf (Z.L.)</span>
     </footer>
   </div>
   
@@ -907,5 +942,14 @@
   
   <!-- JS -->
   <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((err) => {
+          console.warn('Service worker no registrado:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

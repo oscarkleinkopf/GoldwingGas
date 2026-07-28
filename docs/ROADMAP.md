@@ -5,8 +5,9 @@ Prioridades sugeridas para evolucionar GoldwingGas sin abandonar el modelo SPA l
 ## Corto plazo (bajo riesgo)
 
 - [ ] **Tests manuales documentados** — checklist reproducible en `docs/DEVELOPMENT.md` o un `docs/QA.md` con capturas de casos OCR/CSV.
-- [ ] **Favicon y meta Open Graph** — mejor compartir el link de Pages.
-- [ ] **PWA mínima** — `manifest.json` + service worker solo para cachear shell (HTML/CSS/JS/CDNs), sin sync remoto.
+- [x] **Favicon e iconos** — set en `assets/icons/` + arte de dedicatoria en la UI.
+- [x] **PWA mínima** — `manifest.webmanifest` + `sw.js` (cache del shell + CDNs al vuelo); instalable en Android sin Play Store.
+- [ ] **Meta Open Graph** — mejor compartir el link de Pages en redes.
 - [ ] **Validación de formularios** — odómetro no menor al anterior (aviso), litros/costo > 0, fechas futuras.
 - [ ] **i18n opcional** — extraer strings ES a un diccionario; EN como segundo idioma (la comunidad GL-1000 es global).
 

@@ -103,6 +103,12 @@ Validación manual mínima antes de merge:
 
 Cuando se añadan tests, documentar el comando aquí (ver ROADMAP).
 
+## PWA / service worker
+
+Tras cambiar `index.html`, `app.js`, `style.css` o assets del shell, sube `CACHE_VERSION` en `sw.js` (p. ej. `goldwinggas-v2`) para forzar recacheo en clientes ya instalados.
+
+Probar instalación: Chrome → DevTools → Application → Manifest / Service Workers. En Android real, abre la URL de Pages por HTTPS.
+
 ## Deploy
 
 Push a `main` → GitHub Pages regenera el sitio. No hay secrets ni variables de entorno.

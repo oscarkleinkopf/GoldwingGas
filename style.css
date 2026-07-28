@@ -61,6 +61,17 @@ body {
   gap: 15px;
 }
 
+.header-art {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 179, 0, 0.45);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.35);
+  background: #000;
+  flex-shrink: 0;
+}
+
 .honda-wing {
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
 }
@@ -824,6 +835,55 @@ hr {
   margin-top: 10px;
 }
 
+.dedication-card .dedication-art {
+  margin: 0 0 18px;
+  text-align: center;
+}
+
+.dedication-card .dedication-art img {
+  display: block;
+  width: min(100%, 420px);
+  height: auto;
+  margin: 0 auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 179, 0, 0.25);
+  background: #000;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.dedication-line {
+  margin-top: 16px;
+  text-align: center;
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+  color: var(--accent-gold);
+  font-size: 0.85rem;
+}
+
+.app-footer {
+  text-align: center;
+  padding: 20px 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.app-footer .footer-art {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 179, 0, 0.35);
+  background: #000;
+}
+
 /* Modals */
 .modal {
   display: none;
@@ -1099,17 +1159,6 @@ hr {
 .border-green { border-color: var(--accent-green); }
 .border-yellow { border-color: var(--accent-gold); }
 .border-red { border-color: var(--accent-red); }
-
-.app-footer {
-  text-align: center;
-  padding: 20px 10px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-family: var(--font-display);
-  letter-spacing: 1px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  margin-top: 40px;
-}
 
 /* Interactive Shelter CSS */
 .shelter-layout {

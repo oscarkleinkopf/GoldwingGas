@@ -110,6 +110,17 @@ Detalles de columnas y schema: [DATA_MODEL.md](DATA_MODEL.md).
 - Layout centrado `max-width: 1200px`, responsive vía media queries al final de `style.css`.
 - Componentes recurrentes: `.card`, `.btn`, `.data-table`, `.vintage-gauge`, `.indicator-lamp`, `.modal`.
 
+## PWA (instalación en Android)
+
+| Archivo | Rol |
+|---------|-----|
+| `manifest.webmanifest` | `name`, `start_url`, `display: standalone`, iconos |
+| `sw.js` | Cache del shell local; CDNs network-first con fallback |
+| `assets/icons/*` | Iconos 192/512 + maskable + favicon |
+| `initPwaInstall()` en `app.js` | Captura `beforeinstallprompt` y botón en Ajustes |
+
+Rutas relativas (`./`) para que funcione bajo `https://…github.io/GoldwingGas/`.
+
 ## Deploy
 
 Estático en GitHub Pages desde `main` + `.nojekyll`. No hay CI ni tests automatizados todavía (ver ROADMAP).

@@ -37,6 +37,16 @@ Datos **100 % locales** (`localStorage`). El OCR corre en el navegador con Tesse
 2. Si es la primera visita, verás datos de ejemplo (seed). En **Ajustes** puedes borrarlos e importar tu planilla.
 3. En móvil, los botones de foto abren la cámara (`capture="environment"`).
 
+### Instalar en Android (sin Google Play)
+
+La app es una **PWA**: se instala directo desde el navegador.
+
+1. Abre [la demo](https://oscarkleinkopf.github.io/GoldwingGas/) en **Chrome** en el teléfono.
+2. Menú ⋮ → **Instalar app** / **Añadir a la pantalla de inicio** (o el botón en **Ajustes** si Chrome lo ofrece).
+3. Queda un icono **GoldwingGas** a pantalla completa. Los datos siguen en el teléfono (`localStorage`).
+
+No hace falta APK ni Play Store. Tras un deploy nuevo, al abrir la app instalada se actualiza sola vía el service worker.
+
 > Para OCR y cámaras, preferible servir por HTTP(S) (GitHub Pages o un servidor local). Abrir el archivo como `file://` puede limitar algunas APIs del navegador.
 
 ### Servidor local rápido
@@ -57,18 +67,25 @@ Luego abre `http://localhost:8080`.
 
 ```
 GoldwingGas/
-├── index.html          # UI: tabs, modales, formularios
-├── app.js              # Estado, cálculos, OCR, importadores, herramientas
-├── style.css           # Tema vintage (variables CSS)
-├── .nojekyll           # GitHub Pages sin Jekyll
+├── index.html              # UI: tabs, modales, formularios
+├── app.js                  # Estado, cálculos, OCR, importadores, PWA install
+├── style.css               # Tema vintage (variables CSS)
+├── manifest.webmanifest    # Metadatos PWA / icono de instalación
+├── sw.js                   # Service worker (cache del shell)
+├── assets/
+│   ├── goldwing-art.jpg    # Arte de dedicatoria (en la app)
+│   ├── goldwing-art-card.jpg
+│   └── icons/              # Favicon + iconos 192/512 (Android)
+├── .nojekyll
 ├── .gitignore
 ├── README.md
 ├── CONTRIBUTING.md
+├── AGENTS.md
 └── docs/
-    ├── ARCHITECTURE.md # Arquitectura y mapa de módulos
-    ├── DEVELOPMENT.md  # Flujo de trabajo y convenciones
-    ├── DATA_MODEL.md   # Esquema de datos y formatos de importación
-    └── ROADMAP.md      # Ideas para continuar el desarrollo
+    ├── ARCHITECTURE.md
+    ├── DEVELOPMENT.md
+    ├── DATA_MODEL.md
+    └── ROADMAP.md
 ```
 
 No hay `package.json` ni bundler: es HTML/CSS/JS vanilla + CDNs.

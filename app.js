@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initFuelAdditiveCalc();
   initAltitudeCalc();
   initSparkPlugDiag();
+  initPwaInstall();
   
   updateUI();
 });
@@ -2203,6 +2204,57 @@ function updateEfficiencyStyleChart() {
           beginAtZero: true
         }
       }
+    }
+  });
+}
+
+// ==========================================
+// PWA INSTALL (Android / Chrome — sin Play Store)
+// ==========================================
+function initPwaInstall() {
+  const installBtn = document.getElementById('btn-install-pwa');
+  const statusEl = document.getElementById('pwa-install-status');
+  if (!installBtn) return;
+
+  let deferredPrompt = null;
+
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+
+  if (isStandalone && statusEl) {
+    statusEl.textContent = 'GoldwingGas ya está instalada en este dispositivo.';
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'inline-flex';
+    if (statusEl) {
+      statusEl.textContent = 'Listo para instalar. Usa el botón o el menú de Chrome → Instalar app.';
+    }
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    try {
+      const choice = await deferredPrompt.userChoice;
+      if (choice.outcome === 'accepted' && statusEl) {
+        statusEl.textContent = 'Instalación iniciada. Busca el icono GoldwingGas en la pantalla de inicio.';
+      }
+    } catch (err) {
+      console.warn('Install prompt error:', err);
+    }
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+    if (statusEl) {
+      statusEl.textContent = 'GoldwingGas quedó instalada. Ábrela desde el icono de la pantalla de inicio.';
     }
   });
 }
