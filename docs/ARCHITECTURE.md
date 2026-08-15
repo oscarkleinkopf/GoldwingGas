@@ -119,9 +119,10 @@ Detalles de columnas y schema: [DATA_MODEL.md](DATA_MODEL.md).
 | Archivo | Rol |
 |---------|-----|
 | `manifest.webmanifest` | `name`, `start_url`, `display: standalone`, iconos |
-| `sw.js` | Cache del shell local; CDNs network-first con fallback |
+| `sw.js` | Cache del shell + Chart.js/FA/Tesseract; CDNs cache-first con revalidación |
 | `assets/icons/*` | Iconos 192/512 + maskable + favicon |
-| `initPwaInstall()` en `app.js` | Captura `beforeinstallprompt` y botón en Ajustes |
+| `initPwaInstall()` / `initConnectivityUi()` | Instalar app + banner sin conexión |
+| `warmOcrCache()` | Precarga worker/WASM/`spa.traineddata` con red |
 
 Rutas relativas (`./`) para que funcione bajo `https://…github.io/GoldwingGas/`.
 

@@ -107,7 +107,9 @@ Cuando se añadan tests, documentar el comando aquí (ver ROADMAP).
 
 ## PWA / service worker
 
-Tras cambiar `index.html`, `app.js`, `style.css` o assets del shell, sube `CACHE_VERSION` en `sw.js` (p. ej. `goldwinggas-v2`) para forzar recacheo en clientes ya instalados.
+Tras cambiar `index.html`, `app.js`, `style.css` o assets del shell, sube `CACHE_VERSION` en `sw.js` (ahora `goldwinggas-v3`) para forzar recacheo en clientes ya instalados.
+
+El SW precachea Chart.js, Tesseract (script) y Font Awesome. Worker/WASM/idioma `spa` se calientan en segundo plano al abrir la app con red (`warmOcrCache`). Sin conexión, el tablero funciona; el OCR solo si esos assets ya están en caché.
 
 Probar instalación: Chrome → DevTools → Application → Manifest / Service Workers. En Android real, abre la URL de Pages por HTTPS.
 
