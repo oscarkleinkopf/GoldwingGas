@@ -94,6 +94,18 @@
       
       <!-- TAB 1: DASHBOARD -->
       <section id="tab-dashboard" class="tab-pane active">
+        <div id="backup-banner" class="backup-banner" hidden>
+          <div class="backup-banner-copy">
+            <strong id="backup-banner-title"><i class="fa-solid fa-shield-halved"></i> Respaldo pendiente</strong>
+            <p id="backup-banner-text">Los datos viven en este navegador. Descarga un JSON y guárdalo fuera del teléfono.</p>
+          </div>
+          <div class="backup-banner-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-backup-now">
+              <i class="fa-solid fa-file-export"></i> Descargar respaldo
+            </button>
+            <button type="button" class="btn btn-neutral btn-sm" id="btn-backup-later">Más tarde</button>
+          </div>
+        </div>
         <div class="dashboard-grid">
           
           <!-- Speedometer & Fuel Gauges (Vintage 70s look) -->
@@ -624,12 +636,25 @@
           
           <div class="card data-card">
             <h2>Respaldo y Datos</h2>
-            <p>Tus datos se guardan automáticamente en este navegador localmente. Para no perder tu historial, puedes exportar copias de seguridad.</p>
+            <p>El historial se guarda en este navegador. Las fotos de boletas van a IndexedDB para no saturar la bitácora. Un JSON de respaldo incluye ambos: guárdalo en Drive, PC o USB.</p>
+            <div id="backup-status-box" class="backup-status">
+              <div class="backup-status-row">
+                <span>Último respaldo</span>
+                <strong id="backup-last-label">Nunca</strong>
+              </div>
+              <div class="backup-status-row">
+                <span>Almacenamiento usado</span>
+                <span id="backup-storage-label">—</span>
+              </div>
+              <p class="text-muted" id="backup-status-hint" style="margin-top: 8px; font-size: 0.8rem;">Todavía no hay un archivo de respaldo.</p>
+            </div>
             <div class="backup-actions">
               <button class="btn btn-secondary" id="btn-export-data">
-                <i class="fa-solid fa-file-export"></i> Exportar Datos (JSON)
+                <i class="fa-solid fa-file-export"></i> Descargar JSON
               </button>
-              
+              <button type="button" class="btn btn-primary" id="btn-share-backup" style="display: none;">
+                <i class="fa-solid fa-share-nodes"></i> Compartir respaldo
+              </button>
               <div class="file-upload-btn btn btn-neutral">
                 <i class="fa-solid fa-file-import"></i> Importar Datos (JSON)
                 <input type="file" id="input-import-data" accept=".json">
@@ -788,8 +813,9 @@
             </div>
           </div>
           
-          <!-- Storing image base64 locally -->
+          <!-- Storing image base64 locally (staging only; persisted in IndexedDB) -->
           <input type="hidden" id="fuel-image-data" value="">
+          <input type="hidden" id="fuel-photo-id" value="">
           
           <div class="modal-footer">
             <button type="button" class="btn btn-neutral" id="btn-cancel-fuel">Cancelar</button>
@@ -880,8 +906,9 @@
             <textarea id="maint-notes" class="form-control" rows="4" placeholder="Especifica marcas, códigos de piezas o detalles del trabajo realizado..."></textarea>
           </div>
           
-          <!-- Storing image base64 locally -->
+          <!-- Storing image base64 locally (staging only; persisted in IndexedDB) -->
           <input type="hidden" id="maint-image-data" value="">
+          <input type="hidden" id="maint-photo-id" value="">
           
           <div class="modal-footer">
             <button type="button" class="btn btn-neutral" id="btn-cancel-maint">Cancelar</button>

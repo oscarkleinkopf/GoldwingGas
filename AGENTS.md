@@ -4,7 +4,7 @@ Contexto rápido para seguir desarrollando GoldwingGas sin redescubrir el diseñ
 
 ## Qué es
 
-SPA **vanilla** (HTML/CSS/JS) para tracking de combustible y mantenimiento de Honda Goldwing GL-1000. Sin `package.json`, sin bundler, sin backend. Persistencia: `localStorage` clave `goldwing_gas_state`.
+SPA **vanilla** (HTML/CSS/JS) para tracking de combustible y mantenimiento de Honda Goldwing GL-1000. Sin `package.json`, sin bundler, sin backend. Persistencia: `localStorage` clave `goldwing_gas_state` + IndexedDB `goldwing_gas_photos` para boletas.
 
 ## Archivos que importan
 
@@ -21,9 +21,10 @@ SPA **vanilla** (HTML/CSS/JS) para tracking de combustible y mantenimiento de Ho
 
 1. No introducir framework/build sin acuerdo explícito del usuario.
 2. OCR y datos del usuario deben seguir siendo **locales**.
-3. Si mutas el schema de `state`, añade fallback en `loadData()` y actualiza `docs/DATA_MODEL.md`.
+3. Si mutas el schema de `state`, añade fallback en `loadData()` / `ensureSettingsDefaults()` y actualiza `docs/DATA_MODEL.md`.
 4. UI en español; reutiliza variables CSS existentes.
 5. Tras cambios de parsers (CSV/OCR), prueba plantilla CSV, odómetro `0` y duplicados.
+6. Las fotos no deben volver a `localStorage`; usa `attachPhotoToLog` / IndexedDB. El JSON de backup sí las incluye en `photos`.
 
 ## Docs canónicas
 

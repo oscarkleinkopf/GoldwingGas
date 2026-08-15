@@ -15,7 +15,7 @@ python -m http.server 8080
 # → http://localhost:8080
 ```
 
-Abre DevTools → Application → Local Storage para inspeccionar `goldwing_gas_state`.
+Abre DevTools → Application → Local Storage (`goldwing_gas_state`) e IndexedDB (`goldwing_gas_photos`).
 
 ### Borrar estado de prueba
 
@@ -23,10 +23,11 @@ Consola:
 
 ```js
 localStorage.removeItem('goldwing_gas_state');
+indexedDB.deleteDatabase('goldwing_gas_photos');
 location.reload();
 ```
 
-O usa **Ajustes → borrar historial** (deja logs vacíos, no re-seed).
+O usa **Ajustes → borrar historial** (deja logs vacíos, borra fotos, no re-seed).
 
 ## Convenciones de código
 
@@ -97,9 +98,10 @@ Validación manual mínima antes de merge:
 1. Carga inicial con seed.
 2. Alta / edición / borrado de bencina y mantención.
 3. Cambio de settings y reload (persistencia).
-4. Export JSON → clear storage → import JSON.
+4. Export JSON (incluye `photos`) → borrar LS+IDB → import JSON → fotos siguen viéndose.
 5. Import CSV plantilla.
-6. (Si tocaste OCR) una foto de prueba.
+6. (Si tocaste OCR) una foto de prueba; comprobar que `localStorage` no contiene data URLs enormes.
+7. Banner de respaldo: sin `lastBackupAt` aparece; tras descargar JSON, desaparece.
 
 Cuando se añadan tests, documentar el comando aquí (ver ROADMAP).
 

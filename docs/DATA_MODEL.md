@@ -1,6 +1,8 @@
 # Modelo de datos
 
-Clave de persistencia: **`goldwing_gas_state`** (JSON en `localStorage`).
+Clave de persistencia del historial: **`goldwing_gas_state`** (JSON en `localStorage`).
+
+Fotos de boletas/notas: IndexedDB **`goldwing_gas_photos`**, store `photos` (clave = `log.id`, valor = data URL).
 
 ## Objeto `state`
 
@@ -16,7 +18,8 @@ Clave de persistencia: **`goldwing_gas_state`** (JSON en `localStorage`).
   settings: {
     modelYear: string,   // '1975' … '1979'
     initialOdo: number,  // km de referencia / baseline
-    currency: string     // símbolo, p. ej. '$'
+    currency: string,    // símbolo, p. ej. '$'
+    lastBackupAt: string // ISO datetime del último JSON descargado/compartido, o ''
   }
 }
 ```
@@ -25,6 +28,7 @@ Clave de persistencia: **`goldwing_gas_state`** (JSON en `localStorage`).
 
 | Campo | Tipo | Notas |
 |-------|------|--------|
+| `id` | string | UUID estable (se genera al crear o al migrar) |
 | `date` | string | `YYYY-MM-DD` |
 | `odometer` | number | km; `0` permitido (no entra en dedupe ni en eficiencia) |
 | `liters` | number | litros cargados |
@@ -32,18 +36,22 @@ Clave de persistencia: **`goldwing_gas_state`** (JSON en `localStorage`).
 | `type` | string | p. ej. `Turismo`, `Ciudad`, `Autopista` |
 | `station` | string | opcional |
 | `notes` | string | opcional |
-| `image` | string | data URL base64 o `''` |
-| `efficiency` | number \| null | **calculado** en runtime por `calculateStats`; no hace falta persistirlo, pero puede quedar en el JSON |
+| `photoId` | string | `id` del log si hay foto en IndexedDB; si no, `''` |
+| `image` | string | **legado**: data URL. Tras migrar queda `''`; no se persiste en `localStorage` si IndexedDB funciona |
+| `efficiency` | number \| null | **calculado** en runtime por `calculateStats`; se omite al guardar |
 
 ### `MaintLog`
 
 | Campo | Tipo | Notas |
 |-------|------|--------|
+| `id` | string | UUID |
 | `date` | string | `YYYY-MM-DD` |
 | `type` | string | Debe alinear con claves de `MAINTENANCE_SCHEDULES` cuando sea un servicio del tablero |
 | `odometer` | number | km |
 | `cost` | number | |
 | `notes` | string | |
+| `photoId` | string | igual que en FuelLog |
+| `image` | string | legado; ver FuelLog |
 
 Tipos de mantenimiento conocidos (luces del tablero):
 
@@ -56,32 +64,45 @@ Tipos de mantenimiento conocidos (luces del tablero):
 
 ## Seed
 
-Si no hay `localStorage`, `seedState()` carga `SEED_FUEL_LOGS` y `SEED_MAINT_LOGS` (odómetro ~45 000 km, año 1978). El reset desde Ajustes **vacía** logs y pone `initialOdo` en 0 (no vuelve a seedear).
+Si no hay `localStorage`, `seedState()` carga `SEED_FUEL_LOGS` y `SEED_MAINT_LOGS` (odómetro ~45 000 km, año 1978). El reset desde Ajustes **vacía** logs, limpia IndexedDB de fotos y pone `initialOdo` en 0 (no vuelve a seedear).
 
 ## Migraciones / compatibilidad
 
-En `loadData()`, si falta `shelterChecks`, se inicializa. Al añadir campos nuevos:
+En `loadData()`:
+
+- Si falta `shelterChecks`, se inicializa.
+- Si falta `settings.lastBackupAt`, queda `''`.
+- Cada log sin `id` recibe un UUID.
+- Si `log.image` es un data URL, se mueve a IndexedDB (`photoId = id`) y se borra del JSON de `localStorage`.
+
+Al añadir campos nuevos:
 
 1. Extiende el default en `seedState` / objeto inicial.
-2. Añade un fallback en `loadData` (como con `shelterChecks`).
+2. Añade un fallback en `loadData` / `ensureSettingsDefaults`.
 3. Actualiza esta página y el ejemplo de JSON de backup.
 
 **No renombres** claves existentes sin un paso de migración que copie el valor antiguo.
 
 ## Backup JSON
 
-Export (`btn-export-data`) descarga el `state` completo:
+Export descarga el `state` **más** las fotos:
 
 ```json
 {
-  "fuelLogs": [ /* ... */ ],
+  "exportedAt": "2026-08-15T16:00:00.000Z",
+  "fuelLogs": [ /* sin data URLs; con id y photoId */ ],
   "maintLogs": [ /* ... */ ],
   "shelterChecks": { "airFilter": "", "fuses": "", "radiator": "" },
-  "settings": { "modelYear": "1978", "initialOdo": 45000, "currency": "$" }
+  "settings": { "modelYear": "1978", "initialOdo": 45000, "currency": "$", "lastBackupAt": "..." },
+  "photos": {
+    "<log.id>": "data:image/jpeg;base64,..."
+  }
 }
 ```
 
-Import exige al menos `fuelLogs`, `maintLogs` y `settings`.
+Import exige al menos `fuelLogs`, `maintLogs` y `settings`. Restaura `photos` a IndexedDB. Los JSON antiguos con `image` embebido en cada log también se migran.
+
+Aviso de respaldo: si nunca se exportó o pasaron **14 días**, el tablero muestra un banner (se puede posponer en la sesión).
 
 ## CSV / TSV de bencina
 

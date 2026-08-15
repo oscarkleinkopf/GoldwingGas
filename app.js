@@ -10,9 +10,17 @@ let state = {
   settings: {
     modelYear: '1978',
     initialOdo: 45000,
-    currency: '$'
+    currency: '$',
+    lastBackupAt: ''
   }
 };
+
+const BACKUP_WARN_DAYS = 14;
+const PHOTO_DB_NAME = 'goldwing_gas_photos';
+const PHOTO_STORE = 'photos';
+
+let photoDbPromise = null;
+let photoDbAvailable = false;
 
 // GL-1000 Maintenance intervals (in km)
 const MAINTENANCE_SCHEDULES = {
@@ -26,22 +34,27 @@ const MAINTENANCE_SCHEDULES = {
 
 // Seed Data for GL-1000 (if local storage is empty)
 const SEED_FUEL_LOGS = [
-  { date: '2026-05-15', odometer: 45150, liters: 15.2, cost: 16500, type: 'Turismo', station: 'Shell Apoquindo', notes: 'Carga inicial', image: '' },
-  { date: '2026-05-28', odometer: 45360, liters: 14.8, cost: 16100, type: 'Ciudad', station: 'Copec Vitacura', notes: 'Ruta urbana', image: '' },
-  { date: '2026-06-10', odometer: 45610, liters: 16.5, cost: 18000, type: 'Autopista', station: 'Shell Ruta 68', notes: 'Viaje a Viña', image: '' },
-  { date: '2026-06-25', odometer: 45840, liters: 15.0, cost: 16300, type: 'Turismo', station: 'Petrobras', notes: 'Paseo de fin de semana', image: '' }
+  { id: 'seed-fuel-1', date: '2026-05-15', odometer: 45150, liters: 15.2, cost: 16500, type: 'Turismo', station: 'Shell Apoquindo', notes: 'Carga inicial', photoId: '', image: '' },
+  { id: 'seed-fuel-2', date: '2026-05-28', odometer: 45360, liters: 14.8, cost: 16100, type: 'Ciudad', station: 'Copec Vitacura', notes: 'Ruta urbana', photoId: '', image: '' },
+  { id: 'seed-fuel-3', date: '2026-06-10', odometer: 45610, liters: 16.5, cost: 18000, type: 'Autopista', station: 'Shell Ruta 68', notes: 'Viaje a Viña', photoId: '', image: '' },
+  { id: 'seed-fuel-4', date: '2026-06-25', odometer: 45840, liters: 15.0, cost: 16300, type: 'Turismo', station: 'Petrobras', notes: 'Paseo de fin de semana', photoId: '', image: '' }
 ];
 
 const SEED_MAINT_LOGS = [
-  { date: '2026-05-10', type: 'Correas de Distribución', odometer: 45000, cost: 120000, notes: 'Se instalaron correas Gates nuevas y tensores. Crítico para motor GL-1000.' },
-  { date: '2026-05-10', type: 'Cambio de Aceite y Filtro', odometer: 45000, cost: 35000, notes: 'Aceite Liqui Moly 20W-50 mineral y filtro de aceite original.' },
-  { date: '2026-05-12', type: 'Sincronización Carburadores', odometer: 45050, cost: 50000, notes: 'Sincronización de los 4 carburadores Keihin con vacuómetro. Quedó ralentí muy parejo.' },
-  { date: '2026-05-12', type: 'Ajuste de Válvulas', odometer: 45050, cost: 25000, notes: 'Ajuste de holgura de válvulas (Admisión: 0.10mm, Escape: 0.13mm).' }
+  { id: 'seed-maint-1', date: '2026-05-10', type: 'Correas de Distribución', odometer: 45000, cost: 120000, notes: 'Se instalaron correas Gates nuevas y tensores. Crítico para motor GL-1000.', photoId: '', image: '' },
+  { id: 'seed-maint-2', date: '2026-05-10', type: 'Cambio de Aceite y Filtro', odometer: 45000, cost: 35000, notes: 'Aceite Liqui Moly 20W-50 mineral y filtro de aceite original.', photoId: '', image: '' },
+  { id: 'seed-maint-3', date: '2026-05-12', type: 'Sincronización Carburadores', odometer: 45050, cost: 50000, notes: 'Sincronización de los 4 carburadores Keihin con vacuómetro. Quedó ralentí muy parejo.', photoId: '', image: '' },
+  { id: 'seed-maint-4', date: '2026-05-12', type: 'Ajuste de Válvulas', odometer: 45050, cost: 25000, notes: 'Ajuste de holgura de válvulas (Admisión: 0.10mm, Escape: 0.13mm).', photoId: '', image: '' }
 ];
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
-  loadData();
+  bootApp();
+});
+
+async function bootApp() {
+  await openPhotoDb();
+  await loadData();
   initTabs();
   initFormListeners();
   initOcrEngine();
@@ -53,20 +66,223 @@ document.addEventListener('DOMContentLoaded', () => {
   initAltitudeCalc();
   initSparkPlugDiag();
   initPwaInstall();
+  initBackupUi();
   
   updateUI();
-});
+}
+
+function createLogId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `log_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function isDataUrl(value) {
+  return typeof value === 'string' && value.startsWith('data:');
+}
+
+function logHasPhoto(log) {
+  return !!(log && (log.photoId || isDataUrl(log.image)));
+}
+
+function openPhotoDb() {
+  if (photoDbPromise) return photoDbPromise;
+  photoDbPromise = new Promise((resolve) => {
+    if (!window.indexedDB) {
+      photoDbAvailable = false;
+      resolve(null);
+      return;
+    }
+    const req = indexedDB.open(PHOTO_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(PHOTO_STORE)) {
+        db.createObjectStore(PHOTO_STORE);
+      }
+    };
+    req.onsuccess = () => {
+      photoDbAvailable = true;
+      resolve(req.result);
+    };
+    req.onerror = () => {
+      photoDbAvailable = false;
+      console.warn('IndexedDB no disponible; las fotos se mantienen en el JSON si hace falta.');
+      resolve(null);
+    };
+  });
+  return photoDbPromise;
+}
+
+function idbRequest(txOp) {
+  return new Promise((resolve, reject) => {
+    txOp.oncomplete = () => resolve();
+    txOp.onerror = () => reject(txOp.error);
+    txOp.onabort = () => reject(txOp.error);
+  });
+}
+
+async function putPhoto(id, dataUrl) {
+  if (!id || !isDataUrl(dataUrl)) return false;
+  const db = await openPhotoDb();
+  if (!db) return false;
+  try {
+    const tx = db.transaction(PHOTO_STORE, 'readwrite');
+    tx.objectStore(PHOTO_STORE).put(dataUrl, id);
+    await idbRequest(tx);
+    return true;
+  } catch (err) {
+    console.error('No se pudo guardar la foto en IndexedDB', err);
+    return false;
+  }
+}
+
+async function getPhoto(id) {
+  if (!id) return '';
+  const db = await openPhotoDb();
+  if (!db) return '';
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(PHOTO_STORE, 'readonly');
+      const req = tx.objectStore(PHOTO_STORE).get(id);
+      req.onsuccess = () => resolve(req.result || '');
+      req.onerror = () => resolve('');
+    } catch (err) {
+      resolve('');
+    }
+  });
+}
+
+async function deletePhoto(id) {
+  if (!id) return;
+  const db = await openPhotoDb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(PHOTO_STORE, 'readwrite');
+    tx.objectStore(PHOTO_STORE).delete(id);
+    await idbRequest(tx);
+  } catch (err) {
+    console.warn('No se pudo borrar la foto', err);
+  }
+}
+
+async function clearAllPhotos() {
+  const db = await openPhotoDb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(PHOTO_STORE, 'readwrite');
+    tx.objectStore(PHOTO_STORE).clear();
+    await idbRequest(tx);
+  } catch (err) {
+    console.warn('No se pudieron vaciar las fotos', err);
+  }
+}
+
+async function getAllPhotos() {
+  const db = await openPhotoDb();
+  if (!db) return {};
+  return new Promise((resolve) => {
+    const out = {};
+    try {
+      const tx = db.transaction(PHOTO_STORE, 'readonly');
+      const req = tx.objectStore(PHOTO_STORE).openCursor();
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+          out[cursor.key] = cursor.value;
+          cursor.continue();
+        } else {
+          resolve(out);
+        }
+      };
+      req.onerror = () => resolve(out);
+    } catch (err) {
+      resolve(out);
+    }
+  });
+}
+
+async function resolveLogPhoto(log) {
+  if (!log) return '';
+  if (isDataUrl(log.image)) return log.image;
+  if (log.photoId) return await getPhoto(log.photoId);
+  return '';
+}
+
+async function attachPhotoToLog(log, imageData) {
+  if (!log.id) log.id = createLogId();
+  if (!isDataUrl(imageData)) return;
+  const stored = await putPhoto(log.id, imageData);
+  if (stored) {
+    log.photoId = log.id;
+    log.image = '';
+  } else {
+    log.photoId = log.id;
+    log.image = imageData;
+  }
+}
+
+function ensureSettingsDefaults() {
+  if (!state.settings) {
+    state.settings = { modelYear: '1978', initialOdo: 45000, currency: '$', lastBackupAt: '' };
+  }
+  if (state.settings.lastBackupAt === undefined) {
+    state.settings.lastBackupAt = '';
+  }
+  if (!state.shelterChecks) {
+    state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
+  }
+}
+
+function ensureLogIds(logs) {
+  logs.forEach((log) => {
+    if (!log.id) log.id = createLogId();
+    if (!log.photoId) log.photoId = '';
+  });
+}
+
+async function migrateEmbeddedPhotosToIdb() {
+  let moved = 0;
+  const migrateList = async (logs) => {
+    for (const log of logs) {
+      if (!log.id) log.id = createLogId();
+      if (isDataUrl(log.image)) {
+        const stored = await putPhoto(log.id, log.image);
+        log.photoId = log.id;
+        if (stored) {
+          log.image = '';
+          moved++;
+        }
+      }
+    }
+  };
+  await migrateList(state.fuelLogs || []);
+  await migrateList(state.maintLogs || []);
+  return moved;
+}
+
+function persistableState() {
+  const clone = JSON.parse(JSON.stringify(state));
+  const stripInlinePhotos = photoDbAvailable;
+  (clone.fuelLogs || []).forEach((log) => {
+    delete log.efficiency;
+    if (stripInlinePhotos && isDataUrl(log.image)) log.image = '';
+  });
+  (clone.maintLogs || []).forEach((log) => {
+    if (stripInlinePhotos && isDataUrl(log.image)) log.image = '';
+  });
+  return clone;
+}
 
 // Load state from localStorage or seed
-function loadData() {
+async function loadData() {
   const savedState = localStorage.getItem('goldwing_gas_state');
   if (savedState) {
     try {
       state = JSON.parse(savedState);
-      // Fallback for new properties
-      if (!state.shelterChecks) {
-        state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
-      }
+      ensureSettingsDefaults();
+      ensureLogIds(state.fuelLogs || (state.fuelLogs = []));
+      ensureLogIds(state.maintLogs || (state.maintLogs = []));
+      const moved = await migrateEmbeddedPhotosToIdb();
+      if (moved > 0) saveData();
     } catch (e) {
       console.error('Error al cargar datos de localStorage. Iniciando con semillas.', e);
       seedState();
@@ -77,19 +293,27 @@ function loadData() {
 }
 
 function seedState() {
-  state.fuelLogs = [...SEED_FUEL_LOGS];
-  state.maintLogs = [...SEED_MAINT_LOGS];
+  state.fuelLogs = SEED_FUEL_LOGS.map((log) => ({ ...log }));
+  state.maintLogs = SEED_MAINT_LOGS.map((log) => ({ ...log }));
   state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
   state.settings = {
     modelYear: '1978',
     initialOdo: 45000,
-    currency: '$'
+    currency: '$',
+    lastBackupAt: ''
   };
   saveData();
 }
 
 function saveData() {
-  localStorage.setItem('goldwing_gas_state', JSON.stringify(state));
+  try {
+    localStorage.setItem('goldwing_gas_state', JSON.stringify(persistableState()));
+  } catch (e) {
+    console.error('Error al guardar localStorage', e);
+    if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+      alert('El almacenamiento del navegador está lleno. Descarga un respaldo JSON desde Ajustes y libera espacio.');
+    }
+  }
 }
 
 // Navigation Tabs
@@ -163,6 +387,8 @@ function updateUI() {
   if (activeTab && activeTab.dataset.tab === 'tab-fuel') {
     updateEfficiencyStyleChart();
   }
+
+  updateBackupStatus();
 }
 
 // Update Odometer display in the header (mechanical drum look)
@@ -383,7 +609,9 @@ function renderFuelLogsTable() {
       ? `<strong>${log.efficiency.toFixed(2)}</strong> km/L<br><span class="text-muted">${(100/log.efficiency).toFixed(2)} L/100km</span>`
       : '<span class="text-muted">N/A (Carga inicial)</span>';
       
-    const hasPhoto = log.image ? `<button class="ticket-attachment-btn" onclick="viewPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> Ver boleta</button>` : '<span class="text-muted">-</span>';
+    const hasPhoto = logHasPhoto(log)
+      ? `<button class="ticket-attachment-btn" onclick="viewPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> Ver boleta</button>`
+      : '<span class="text-muted">-</span>';
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -420,7 +648,9 @@ function renderMaintLogsTable() {
     const originalIndex = state.maintLogs.indexOf(log);
     const dateFormatted = new Date(log.date).toLocaleDateString('es-ES', { timeZone: 'UTC' });
     const costDisplay = log.cost ? `${state.settings.currency}${parseInt(log.cost).toLocaleString()}` : '<span class="text-muted">-</span>';
-    const hasPhoto = log.image ? `<button class="ticket-attachment-btn" onclick="viewMaintPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> Ver nota</button>` : '<span class="text-muted">-</span>';
+    const hasPhoto = logHasPhoto(log)
+      ? `<button class="ticket-attachment-btn" onclick="viewMaintPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> Ver nota</button>`
+      : '<span class="text-muted">-</span>';
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -527,6 +757,7 @@ function initFormListeners() {
         document.getElementById('form-fuel-log').reset();
         document.getElementById('fuel-log-index').value = "-1";
         document.getElementById('fuel-image-data').value = "";
+        document.getElementById('fuel-photo-id').value = "";
         
         // Hide OCR preview
         document.getElementById('ocr-preview-container').style.display = 'none';
@@ -551,7 +782,7 @@ function initFormListeners() {
   });
   
   // Save Fuel Log Form
-  document.getElementById('form-fuel-log').addEventListener('submit', (e) => {
+  document.getElementById('form-fuel-log').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const index = parseInt(document.getElementById('fuel-log-index').value);
@@ -562,6 +793,7 @@ function initFormListeners() {
     const type = document.getElementById('fuel-type').value;
     const station = document.getElementById('fuel-station').value;
     const imageData = document.getElementById('fuel-image-data').value;
+    const existingPhotoId = document.getElementById('fuel-photo-id').value;
     
     // Validation
     const initialOdo = parseInt(state.settings.initialOdo) || 0;
@@ -571,12 +803,28 @@ function initFormListeners() {
       return;
     }
     
-    const logData = { date, odometer, liters, cost, type, station, notes: '', image: imageData };
+    const previous = index === -1 ? null : state.fuelLogs[index];
+    const logData = {
+      id: (previous && previous.id) || createLogId(),
+      date,
+      odometer,
+      liters,
+      cost,
+      type,
+      station,
+      notes: (previous && previous.notes) || '',
+      photoId: existingPhotoId || (previous && previous.photoId) || '',
+      image: ''
+    };
+    
+    if (isDataUrl(imageData)) {
+      await attachPhotoToLog(logData, imageData);
+    }
     
     if (index === -1) {
       state.fuelLogs.push(logData);
     } else {
-      state.fuelLogs[index] = { ...state.fuelLogs[index], ...logData };
+      state.fuelLogs[index] = { ...previous, ...logData };
     }
     
     saveData();
@@ -594,6 +842,7 @@ function initFormListeners() {
         document.getElementById('form-maint-log').reset();
         document.getElementById('maint-log-index').value = "-1";
         document.getElementById('maint-image-data').value = "";
+        document.getElementById('maint-photo-id').value = "";
         
         // Hide OCR preview
         document.getElementById('ocr-maint-preview-container').style.display = 'none';
@@ -616,7 +865,7 @@ function initFormListeners() {
   });
   
   // Save Maintenance Log Form
-  document.getElementById('form-maint-log').addEventListener('submit', (e) => {
+  document.getElementById('form-maint-log').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const index = parseInt(document.getElementById('maint-log-index').value);
@@ -626,6 +875,7 @@ function initFormListeners() {
     const cost = document.getElementById('maint-cost').value ? parseInt(document.getElementById('maint-cost').value) : null;
     const notes = document.getElementById('maint-notes').value;
     const imageData = document.getElementById('maint-image-data').value;
+    const existingPhotoId = document.getElementById('maint-photo-id').value;
     
     const initialOdo = parseInt(state.settings.initialOdo) || 0;
     if (odometer < initialOdo) {
@@ -633,12 +883,26 @@ function initFormListeners() {
       return;
     }
     
-    const maintData = { type, date, odometer, cost, notes, image: imageData };
+    const previous = index === -1 ? null : state.maintLogs[index];
+    const maintData = {
+      id: (previous && previous.id) || createLogId(),
+      type,
+      date,
+      odometer,
+      cost,
+      notes,
+      photoId: existingPhotoId || (previous && previous.photoId) || '',
+      image: ''
+    };
+    
+    if (isDataUrl(imageData)) {
+      await attachPhotoToLog(maintData, imageData);
+    }
     
     if (index === -1) {
       state.maintLogs.push(maintData);
     } else {
-      state.maintLogs[index] = { ...state.maintLogs[index], ...maintData };
+      state.maintLogs[index] = { ...previous, ...maintData };
     }
     
     saveData();
@@ -667,25 +931,18 @@ function initFormListeners() {
   
   // Export/Import JSON data
   document.getElementById('btn-export-data').addEventListener('click', () => {
-    const dataStr = JSON.stringify(state, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `goldwing_gas_backup_${new Date().toISOString().split('T')[0]}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
+    downloadBackupFile();
   });
   
   document.getElementById('input-import-data').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     const fileReader = new FileReader();
-    fileReader.onload = function(event) {
+    fileReader.onload = async function(event) {
       try {
         const importedState = JSON.parse(event.target.result);
-        if (importedState.fuelLogs && importedState.maintLogs && importedState.settings) {
-          state = importedState;
-          saveData();
+        const ok = await importBackupPayload(importedState);
+        if (ok) {
           updateUI();
           alert('¡Datos respaldados cargados correctamente!');
         } else {
@@ -694,10 +951,9 @@ function initFormListeners() {
       } catch (err) {
         alert('Error al leer el archivo JSON: ' + err.message);
       }
+      e.target.value = '';
     };
-    if (e.target.files[0]) {
-      fileReader.readAsText(e.target.files[0]);
-    }
+    fileReader.readAsText(file);
   });
 
   // Download CSV template
@@ -727,13 +983,15 @@ function initFormListeners() {
   });
   
   // Clear/Reset Data
-  document.getElementById('btn-reset-data').addEventListener('click', () => {
+  document.getElementById('btn-reset-data').addEventListener('click', async () => {
     if (confirm('¿Estás seguro de que deseas borrar por completo todo el historial? Esta acción vaciará la base de datos para que puedas importar tus propios datos.')) {
       state.fuelLogs = [];
       state.maintLogs = [];
       state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
       state.settings.initialOdo = 0;
+      state.settings.lastBackupAt = '';
       
+      await clearAllPhotos();
       saveData();
       updateUI();
       alert('Se han borrado todos los registros. La base de datos está vacía y lista para importar tu planilla.');
@@ -742,7 +1000,7 @@ function initFormListeners() {
 }
 
 // Global actions triggers (via window for inline HTML onclick attributes)
-window.editFuelLog = function(index) {
+window.editFuelLog = async function(index) {
   const log = state.fuelLogs[index];
   
   document.getElementById('fuel-log-index').value = index;
@@ -752,15 +1010,17 @@ window.editFuelLog = function(index) {
   document.getElementById('fuel-cost').value = log.cost;
   document.getElementById('fuel-type').value = log.type;
   document.getElementById('fuel-station').value = log.station || '';
-  document.getElementById('fuel-image-data').value = log.image || '';
+  document.getElementById('fuel-image-data').value = '';
+  document.getElementById('fuel-photo-id').value = log.photoId || '';
   
   // Pre-fill image view if edit contains ticket image
   const previewContainer = document.getElementById('ocr-preview-container');
   const previewImg = document.getElementById('ocr-preview-img');
+  const photoSrc = await resolveLogPhoto(log);
   
-  if (log.image) {
+  if (photoSrc) {
     previewContainer.style.display = 'block';
-    previewImg.src = log.image;
+    previewImg.src = photoSrc;
     document.getElementById('scan-status').style.display = 'none';
     document.getElementById('scanner-laser').style.display = 'none';
   } else {
@@ -772,15 +1032,17 @@ window.editFuelLog = function(index) {
   document.getElementById('modal-fuel').classList.add('open');
 };
 
-window.deleteFuelLog = function(index) {
+window.deleteFuelLog = async function(index) {
   if (confirm('¿Eliminar este registro de bencina?')) {
+    const log = state.fuelLogs[index];
+    if (log && log.photoId) await deletePhoto(log.photoId);
     state.fuelLogs.splice(index, 1);
     saveData();
     updateUI();
   }
 };
 
-window.editMaintLog = function(index) {
+window.editMaintLog = async function(index) {
   const log = state.maintLogs[index];
   
   document.getElementById('maint-log-index').value = index;
@@ -789,15 +1051,16 @@ window.editMaintLog = function(index) {
   document.getElementById('maint-odo').value = log.odometer;
   document.getElementById('maint-cost').value = log.cost || '';
   document.getElementById('maint-notes').value = log.notes || '';
-  document.getElementById('maint-image-data').value = log.image || '';
+  document.getElementById('maint-image-data').value = '';
+  document.getElementById('maint-photo-id').value = log.photoId || '';
   
-  // Pre-fill image view if edit contains ticket image
   const previewContainer = document.getElementById('ocr-maint-preview-container');
   const previewImg = document.getElementById('ocr-maint-preview-img');
+  const photoSrc = await resolveLogPhoto(log);
   
-  if (log.image) {
+  if (photoSrc) {
     previewContainer.style.display = 'block';
-    previewImg.src = log.image;
+    previewImg.src = photoSrc;
     document.getElementById('scanner-maint-status').style.display = 'none';
     document.getElementById('scanner-maint-laser').style.display = 'none';
   } else {
@@ -809,30 +1072,34 @@ window.editMaintLog = function(index) {
   document.getElementById('modal-maint').classList.add('open');
 };
 
-window.deleteMaintLog = function(index) {
+window.deleteMaintLog = async function(index) {
   if (confirm('¿Eliminar este registro de mantenimiento?')) {
+    const log = state.maintLogs[index];
+    if (log && log.photoId) await deletePhoto(log.photoId);
     state.maintLogs.splice(index, 1);
     saveData();
     updateUI();
   }
 };
 
-window.viewPhoto = function(index) {
+window.viewPhoto = async function(index) {
   const log = state.fuelLogs[index];
-  if (log && log.image) {
+  const src = await resolveLogPhoto(log);
+  if (src) {
     const viewerModal = document.getElementById('modal-viewer');
     const viewerImg = document.getElementById('viewer-img');
-    viewerImg.src = log.image;
+    viewerImg.src = src;
     viewerModal.classList.add('open');
   }
 };
 
-window.viewMaintPhoto = function(index) {
+window.viewMaintPhoto = async function(index) {
   const log = state.maintLogs[index];
-  if (log && log.image) {
+  const src = await resolveLogPhoto(log);
+  if (src) {
     const viewerModal = document.getElementById('modal-viewer');
     const viewerImg = document.getElementById('viewer-img');
-    viewerImg.src = log.image;
+    viewerImg.src = src;
     viewerModal.classList.add('open');
   }
 };
@@ -1378,6 +1645,7 @@ function parseAndImportCSV(text) {
       const notes = notesIdx !== -1 && row[notesIdx] ? row[notesIdx] : '';
       
       state.fuelLogs.push({
+        id: createLogId(),
         date: parsedDate,
         odometer: odometer,
         liters: liters,
@@ -1385,6 +1653,7 @@ function parseAndImportCSV(text) {
         type: type,
         station: '',
         notes: notes,
+        photoId: '',
         image: ''
       });
       
@@ -1556,14 +1825,18 @@ async function processBatchFiles(files) {
           const parsed = extractMaintOcrProperties(ocrText);
           
           // Save Maintenance log
-          state.maintLogs.push({
+          const maintLog = {
+            id: createLogId(),
             type: parsed.type,
             date: parsed.date,
             odometer: parsed.odometer,
             cost: parsed.cost,
             notes: ocrText.trim(),
-            image: base64
-          });
+            photoId: '',
+            image: ''
+          };
+          await attachPhotoToLog(maintLog, base64);
+          state.maintLogs.push(maintLog);
           
           statusDiv.style.borderLeftColor = 'var(--accent-blue)';
           statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-blue);">[Mantenimiento]</span> ${parsed.type} - ${parsed.date ? formatDateString(parsed.date) : 'Sin fecha'} - ${parsed.odometer ? parsed.odometer.toLocaleString() + ' km' : 'Sin km'} - $${parsed.cost ? parsed.cost.toLocaleString() : '0'}`;
@@ -1577,7 +1850,8 @@ async function processBatchFiles(files) {
             statusDiv.style.borderLeftColor = 'var(--accent-gold)';
             statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-gold);">Omitido.</span> Boleta de bencina duplicada en odómetro (${parsed.odometer.toLocaleString()} km).`;
           } else {
-            state.fuelLogs.push({
+            const fuelLog = {
+              id: createLogId(),
               date: parsed.date || new Date().toISOString().split('T')[0],
               odometer: parsed.odometer || (state.fuelLogs.length > 0 ? Math.max(...state.fuelLogs.map(l => l.odometer)) : parseInt(state.settings.initialOdo)),
               liters: parsed.liters || 15.0,
@@ -1585,8 +1859,11 @@ async function processBatchFiles(files) {
               type: 'Turismo',
               station: parsed.station || 'Gasolinera Detectada',
               notes: 'Importado de foto antigua',
-              image: base64
-            });
+              photoId: '',
+              image: ''
+            };
+            await attachPhotoToLog(fuelLog, base64);
+            state.fuelLogs.push(fuelLog);
             
             statusDiv.style.borderLeftColor = 'var(--accent-green)';
             statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-green);">[Bencina]</span> ${parsed.date ? formatDateString(parsed.date) : 'Hoy'} - ${parsed.liters ? parsed.liters + ' L' : '15 L'} - ${parsed.odometer ? parsed.odometer.toLocaleString() + ' km' : 'Sin km'} - $${parsed.cost ? parsed.cost.toLocaleString() : '0'}`;
@@ -1728,6 +2005,7 @@ function parseAndMergeCSVData(text) {
     const notes = notesIdx !== -1 && row[notesIdx] ? row[notesIdx] : '';
     
     state.fuelLogs.push({
+      id: createLogId(),
       date: parsedDate,
       odometer: odometer,
       liters: liters,
@@ -1735,6 +2013,7 @@ function parseAndMergeCSVData(text) {
       type: type,
       station: '',
       notes: notes,
+      photoId: '',
       image: ''
     });
     
@@ -2258,3 +2537,202 @@ function initPwaInstall() {
     }
   });
 }
+
+// ==========================================
+// BACKUP + LAST-EXPORT STATUS
+// ==========================================
+function daysSinceBackup() {
+  const raw = state.settings && state.settings.lastBackupAt;
+  if (!raw) return Infinity;
+  const then = new Date(raw).getTime();
+  if (Number.isNaN(then)) return Infinity;
+  return (Date.now() - then) / (1000 * 60 * 60 * 24);
+}
+
+function formatBackupDate(iso) {
+  if (!iso) return 'Nunca';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'Nunca';
+  return d.toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function markBackupDone() {
+  state.settings.lastBackupAt = new Date().toISOString();
+  saveData();
+  sessionStorage.removeItem('goldwing_backup_snooze');
+  updateBackupStatus();
+}
+
+async function buildBackupPayload() {
+  const payload = persistableState();
+  payload.exportedAt = new Date().toISOString();
+  payload.photos = await getAllPhotos();
+  (payload.fuelLogs || []).forEach((log) => {
+    if (isDataUrl(log.image) && log.id) {
+      payload.photos[log.id] = log.image;
+      log.image = '';
+      log.photoId = log.photoId || log.id;
+    }
+  });
+  (payload.maintLogs || []).forEach((log) => {
+    if (isDataUrl(log.image) && log.id) {
+      payload.photos[log.id] = log.image;
+      log.image = '';
+      log.photoId = log.photoId || log.id;
+    }
+  });
+  return payload;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function backupFilename() {
+  return `goldwing_gas_backup_${new Date().toISOString().split('T')[0]}.json`;
+}
+
+async function downloadBackupFile() {
+  try {
+    const payload = await buildBackupPayload();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    downloadBlob(blob, backupFilename());
+    markBackupDone();
+  } catch (err) {
+    alert('No se pudo generar el respaldo: ' + err.message);
+  }
+}
+
+async function shareBackupFile() {
+  try {
+    const payload = await buildBackupPayload();
+    const filename = backupFilename();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const file = new File([blob], filename, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ title: 'Respaldo GoldwingGas', files: [file] });
+      markBackupDone();
+      return;
+    }
+    downloadBlob(blob, filename);
+    markBackupDone();
+  } catch (err) {
+    if (err && err.name === 'AbortError') return;
+    alert('No se pudo compartir el respaldo: ' + err.message);
+  }
+}
+
+async function importBackupPayload(importedState) {
+  if (!importedState || !importedState.fuelLogs || !importedState.maintLogs || !importedState.settings) {
+    return false;
+  }
+  const photos = importedState.photos && typeof importedState.photos === 'object' ? importedState.photos : {};
+  const next = { ...importedState };
+  delete next.photos;
+  delete next.exportedAt;
+  state = next;
+  ensureSettingsDefaults();
+  ensureLogIds(state.fuelLogs);
+  ensureLogIds(state.maintLogs);
+  await clearAllPhotos();
+  for (const [id, dataUrl] of Object.entries(photos)) {
+    if (isDataUrl(dataUrl)) await putPhoto(id, dataUrl);
+  }
+  await migrateEmbeddedPhotosToIdb();
+  if (!state.settings.lastBackupAt) {
+    state.settings.lastBackupAt = importedState.exportedAt || new Date().toISOString();
+  }
+  saveData();
+  return true;
+}
+
+function backupIsOverdue() {
+  return daysSinceBackup() >= BACKUP_WARN_DAYS;
+}
+
+async function updateBackupStatus() {
+  const lastEl = document.getElementById('backup-last-label');
+  const hintEl = document.getElementById('backup-status-hint');
+  const boxEl = document.getElementById('backup-status-box');
+  const banner = document.getElementById('backup-banner');
+  const bannerText = document.getElementById('backup-banner-text');
+  const storageEl = document.getElementById('backup-storage-label');
+
+  const last = state.settings.lastBackupAt || '';
+  const overdue = backupIsOverdue();
+  const snoozed = sessionStorage.getItem('goldwing_backup_snooze') === '1';
+
+  if (lastEl) lastEl.textContent = formatBackupDate(last);
+  if (boxEl) boxEl.classList.toggle('is-overdue', overdue);
+  if (hintEl) {
+    if (!last) {
+      hintEl.textContent = 'Todavía no hay un archivo de respaldo. Descárgalo y guárdalo fuera del teléfono (Drive, PC o USB).';
+    } else if (overdue) {
+      hintEl.textContent = `Han pasado ${Math.floor(daysSinceBackup())} días. Conviene descargar un JSON nuevo.`;
+    } else {
+      hintEl.textContent = 'Las fotos de boletas viven en IndexedDB (aparte del historial) para no llenar el navegador. El JSON de respaldo las incluye.';
+    }
+  }
+
+  if (banner) {
+    const show = overdue && !snoozed;
+    banner.hidden = !show;
+    if (show && bannerText) {
+      bannerText.textContent = last
+        ? `Último archivo: ${formatBackupDate(last)}. Descarga una copia nueva para no perder la bitácora.`
+        : 'Los datos viven en este navegador. Descarga un JSON y guárdalo fuera del teléfono.';
+    }
+  }
+
+  if (storageEl && navigator.storage && navigator.storage.estimate) {
+    try {
+      const est = await navigator.storage.estimate();
+      const usage = est.usage || 0;
+      const quota = est.quota || 0;
+      const fmt = (n) => {
+        if (n > 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+        if (n > 1024) return `${Math.round(n / 1024)} KB`;
+        return `${n} B`;
+      };
+      storageEl.textContent = quota ? `${fmt(usage)} de ${fmt(quota)}` : fmt(usage);
+    } catch (err) {
+      storageEl.textContent = photoDbAvailable ? 'Fotos en IndexedDB' : 'Solo localStorage';
+    }
+  } else if (storageEl) {
+    storageEl.textContent = photoDbAvailable ? 'Fotos en IndexedDB' : 'Solo localStorage';
+  }
+}
+
+function initBackupUi() {
+  const backupNow = document.getElementById('btn-backup-now');
+  const backupLater = document.getElementById('btn-backup-later');
+  const shareBtn = document.getElementById('btn-share-backup');
+
+  if (backupNow) {
+    backupNow.addEventListener('click', () => downloadBackupFile());
+  }
+  if (backupLater) {
+    backupLater.addEventListener('click', () => {
+      sessionStorage.setItem('goldwing_backup_snooze', '1');
+      const banner = document.getElementById('backup-banner');
+      if (banner) banner.hidden = true;
+    });
+  }
+  if (shareBtn) {
+    try {
+      const probe = new File(['{}'], 'goldwing_gas_backup.json', { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [probe] })) {
+        shareBtn.style.display = 'inline-flex';
+        shareBtn.addEventListener('click', () => shareBackupFile());
+      }
+    } catch (err) {
+      // Share API no soporta archivos en este navegador
+    }
+  }
+}
+

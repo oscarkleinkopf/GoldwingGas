@@ -793,8 +793,72 @@ body {
 /* Backup upload */
 .backup-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 15px;
   margin-top: 10px;
+}
+
+.backup-status {
+  margin: 14px 0 8px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.backup-status.is-overdue {
+  border-color: rgba(255, 179, 0, 0.55);
+  background: rgba(255, 179, 0, 0.08);
+}
+
+.backup-status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.backup-status-row + .backup-status-row {
+  margin-top: 6px;
+}
+
+.backup-status-row strong {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.backup-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 179, 0, 0.45);
+  background: rgba(255, 179, 0, 0.08);
+}
+
+.backup-banner[hidden] {
+  display: none !important;
+}
+
+.backup-banner-copy p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.backup-banner-copy strong {
+  color: var(--accent-gold);
+}
+
+.backup-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .file-upload-btn {

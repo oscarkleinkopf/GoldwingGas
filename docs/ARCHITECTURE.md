@@ -14,8 +14,9 @@ GoldwingGas es una **Single Page Application** sin backend ni build step.
              ▼                              │
 ┌─────────────────────────────────────────────────────────┐
 │  app.js                                                 │
-│  · state (memoria)  ↔  localStorage                     │
-│  · Cálculos, OCR, CSV, herramientas GL-1000             │
+│  · state ↔ localStorage (bitácora)                      │
+│  · fotos ↔ IndexedDB goldwing_gas_photos                │
+│  · Cálculos, OCR, CSV, backup, herramientas GL-1000     │
 └─────────────────────────────────────────────────────────┘
              │
              ▼
@@ -29,15 +30,17 @@ Todo el estado vive en un objeto global `state` y se persiste bajo la clave `gol
 
 ## Arranque
 
-En `DOMContentLoaded` (`app.js`):
+En `bootApp()` (`app.js`, al `DOMContentLoaded`):
 
-1. `loadData()` — lee `localStorage` o aplica seed.
-2. `initTabs()` — navegación por `data-tab`.
-3. `initFormListeners()` — formularios, export/import, reset.
-4. `initOcrEngine()` — dropzones OCR bencina/mantención.
-5. `initBatchImporter()` — importación masiva.
-6. Herramientas: `initShelterGuide`, `initFuelAdditiveCalc`, `initAltitudeCalc`, `initSparkPlugDiag`.
-7. `updateUI()` — pinta tablero, tablas y luces.
+1. `openPhotoDb()` — abre IndexedDB de fotos.
+2. `loadData()` — lee `localStorage`, migra fotos embebidas, o aplica seed.
+3. `initTabs()` — navegación por `data-tab`.
+4. `initFormListeners()` — formularios, export/import, reset.
+5. `initOcrEngine()` — dropzones OCR bencina/mantención.
+6. `initBatchImporter()` — importación masiva.
+7. Herramientas: `initShelterGuide`, `initFuelAdditiveCalc`, `initAltitudeCalc`, `initSparkPlugDiag`.
+8. `initPwaInstall` / `initBackupUi`.
+9. `updateUI()` — pinta tablero, tablas, luces y estado de respaldo.
 
 ## Tabs (UI)
 
@@ -58,7 +61,8 @@ Orden aproximado del archivo (útil para ubicar cambios):
 | Zona | Responsabilidad |
 |------|-----------------|
 | Estado + `MAINTENANCE_SCHEDULES` + seed | Modelo y defaults |
-| `loadData` / `saveData` / `seedState` | Persistencia |
+| IndexedDB fotos + `loadData` / `saveData` | Persistencia (LS sin data URLs) |
+| Backup JSON / aviso 14 días | `buildBackupPayload`, `initBackupUi` |
 | `initTabs` / `updateUI` / gauges / luces | Shell de UI |
 | `calculateStats` | km/L, L/100km, totales, odómetro actual |
 | `renderFuelLogsTable` / `renderMaintLogsTable` / charts | Listados y gráficos |
@@ -76,13 +80,13 @@ Funciones expuestas en `window` (onclick en HTML generado): p. ej. `editFuelLog`
 Usuario (form / OCR / CSV / JSON)
         │
         ▼
-  Mutación de state.*
+  Mutación de state.*  +  putPhoto() → IndexedDB
         │
         ▼
-     saveData()  ──►  localStorage['goldwing_gas_state']
+     saveData()  ──►  localStorage['goldwing_gas_state']  (sin fotos)
         │
         ▼
-     updateUI()  ──►  DOM (odómetro, tablas, luces, settings)
+     updateUI()  ──►  DOM (odómetro, tablas, luces, settings, banner backup)
 ```
 
 `calculateStats()` ordena logs por fecha, calcula eficiencia por tramo (odómetro actual − anterior distinto de 0) y alimenta gauges y stats.

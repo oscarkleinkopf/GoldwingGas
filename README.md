@@ -14,9 +14,9 @@ Aplicación web (SPA) para dueños de la **Honda Goldwing GL-1000 (1975–1979)*
 | **Bencina** | Cargas manuales o por OCR de boleta, gráfico Chart.js, calculadora de aditivos |
 | **Mantenimiento** | Historial, intervalos GL-1000, guía del depósito falso (shelter), OCR de notas |
 | **Guía de panas** | Problemas clásicos del boxer + diagnóstico de bujías + ajuste por altitud |
-| **Ajustes** | Año/odómetro/moneda, export-import JSON, CSV/TSV, importación masiva por carpeta |
+| **Ajustes** | Año/odómetro/moneda, export-import JSON (con fotos), aviso de respaldo, CSV/TSV, importación masiva por carpeta |
 
-Datos **100 % locales** (`localStorage`). El OCR corre en el navegador con Tesseract.js; no se envían fotos a un servidor.
+Datos **100 % locales**. Historial en `localStorage`; fotos de boletas en IndexedDB. El OCR corre en el navegador con Tesseract.js; no se envían fotos a un servidor. En **Ajustes** descarga un JSON de respaldo (incluye fotos) y guárdalo fuera del teléfono.
 
 ### Intervalos de servicio (km)
 
@@ -43,7 +43,7 @@ La app es una **PWA**: se instala directo desde el navegador.
 
 1. Abre [la demo](https://oscarkleinkopf.github.io/GoldwingGas/) en **Chrome** en el teléfono.
 2. Menú ⋮ → **Instalar app** / **Añadir a la pantalla de inicio** (o el botón en **Ajustes** si Chrome lo ofrece).
-3. Queda un icono **GoldwingGas** a pantalla completa. Los datos siguen en el teléfono (`localStorage`).
+3. Queda un icono **GoldwingGas** a pantalla completa. Los datos siguen en el teléfono (`localStorage` + IndexedDB). Descarga un respaldo JSON desde Ajustes.
 
 No hace falta APK ni Play Store. Tras un deploy nuevo, al abrir la app instalada se actualiza sola vía el service worker.
 
