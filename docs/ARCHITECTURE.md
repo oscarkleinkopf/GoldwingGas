@@ -104,7 +104,8 @@ El OCR es best-effort: el usuario siempre puede corregir campos del formulario a
 
 1. **JSON** — reemplazo completo del `state` (backup).
 2. **CSV/TSV** — append de `fuelLogs` con dedupe por odómetro (> 0).
-3. **Batch** — CSV primero, luego imágenes; reporta éxitos/duplicados/errores en modal.
+3. **GPX Beeline** — solo km, fecha y duración; se liga a una carga. Sin mapa.
+4. **Batch** — CSV primero, luego GPX e imágenes.
 
 Detalles de columnas y schema: [DATA_MODEL.md](DATA_MODEL.md).
 

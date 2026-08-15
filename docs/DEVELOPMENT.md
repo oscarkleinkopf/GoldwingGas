@@ -81,6 +81,12 @@ if (state.settings.nuevoCampo === undefined) {
 - Tras cambios, prueba: `;`, `,`, TSV, fechas verbales, odómetro 0, duplicados.
 - Actualiza la plantilla del botón `btn-download-csv-template` si cambian columnas.
 
+## GPX Beeline (complemento de bencina)
+
+- Parser: `parseGpxText` / `importParsedRide`. No guardar la polilínea.
+- Probar un GPX `ridden` real: km > 0, fecha, ligue a carga del mismo día, duplicado al reimportar.
+- En la tabla de bencina debe aparecer `GPS xx km · yy km/L` si está ligado.
+
 ## Debugging útil
 
 | Problema | Dónde mirar |

@@ -10,6 +10,7 @@ Fotos de boletas/notas: IndexedDB **`goldwing_gas_photos`**, store `photos` (cla
 {
   fuelLogs: FuelLog[],
   maintLogs: MaintLog[],
+  rides: Ride[],
   shelterChecks: {
     airFilter: string,   // '' | ISO date u otra marca de inspección
     fuses: string,
@@ -39,6 +40,24 @@ Fotos de boletas/notas: IndexedDB **`goldwing_gas_photos`**, store `photos` (cla
 | `photoId` | string | `id` del log si hay foto en IndexedDB; si no, `''` |
 | `image` | string | **legado**: data URL. Tras migrar queda `''`; no se persiste en `localStorage` si IndexedDB funciona |
 | `efficiency` | number \| null | **calculado** en runtime por `calculateStats`; se omite al guardar |
+| `gpsKm` / `gpsEfficiency` | number \| null | **calculados** si hay un `Ride` ligado; no se persisten |
+
+### `Ride` (GPX Beeline)
+
+Solo resumen para complementar bencina. **No** se guarda la traza GPS.
+
+| Campo | Tipo | Notas |
+|-------|------|--------|
+| `id` | string | UUID |
+| `source` | string | `beeline` |
+| `name` | string | nombre del track o del archivo |
+| `date` | string | `YYYY-MM-DD` del primer punto con hora |
+| `distanceKm` | number | haversine de la traza |
+| `durationMin` | number \| null | si el GPX trae timestamps |
+| `pointCount` | number | |
+| `fuelLogId` | string | id de la carga ligada, o `''` |
+
+Al importar: si hay una carga el mismo día o al día siguiente, se asigna `fuelLogId`. Duplicado = misma fecha y distancia &lt; 1 km.
 
 ### `MaintLog`
 
@@ -72,6 +91,7 @@ En `loadData()`:
 
 - Si falta `shelterChecks`, se inicializa.
 - Si falta `settings.lastBackupAt`, queda `''`.
+- Si falta `rides`, se inicializa `[]`.
 - Cada log sin `id` recibe un UUID.
 - Si `log.image` es un data URL, se mueve a IndexedDB (`photoId = id`) y se borra del JSON de `localStorage`.
 
@@ -92,6 +112,7 @@ Export descarga el `state` **más** las fotos:
   "exportedAt": "2026-08-15T16:00:00.000Z",
   "fuelLogs": [ /* sin data URLs; con id y photoId */ ],
   "maintLogs": [ /* ... */ ],
+  "rides": [ /* resumen GPX: date, distanceKm, fuelLogId */ ],
   "shelterChecks": { "airFilter": "", "fuses": "", "radiator": "" },
   "settings": { "modelYear": "1978", "initialOdo": 45000, "currency": "$", "lastBackupAt": "..." },
   "photos": {

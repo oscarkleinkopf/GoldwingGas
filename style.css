@@ -1576,4 +1576,30 @@ hr {
   }
 }
 
+.gps-fuel-note {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: var(--accent-gold);
+}
+
+.ride-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.82rem;
+}
+
+.ride-row .text-muted {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.75rem;
+}
+
 

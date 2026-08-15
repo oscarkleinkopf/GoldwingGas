@@ -662,6 +662,18 @@
             </div>
             
             <div style="margin-top: 20px;">
+              <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 5px; color: var(--accent-gold);">Viajes Beeline (GPX)</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">No es un GPS: solo toma km y fecha del archivo. En Beeline abre el viaje → Opciones → <strong>Share/download</strong> → ruta <strong>recorrida (ridden)</strong>. Si hay una carga el mismo día (o al día siguiente), se liga sola para comparar km GPS vs odómetro.</p>
+              <div class="backup-actions">
+                <div class="file-upload-btn btn btn-neutral btn-sm">
+                  <i class="fa-solid fa-route"></i> Importar GPX
+                  <input type="file" id="input-import-gpx" accept=".gpx,application/gpx+xml" multiple>
+                </div>
+              </div>
+              <div id="rides-list"></div>
+            </div>
+            
+            <div style="margin-top: 20px;">
               <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 5px; color: var(--accent-gold);">Importar Planilla Excel (CSV)</h3>
               <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Puedes importar tu planilla histórica de cargas guardándola como archivo CSV (separado por comas o punto y coma) con las columnas: <strong>Fecha, Kilometraje, Litros, Costo</strong>.</p>
               <div class="backup-actions">
@@ -686,12 +698,12 @@
           
           <div class="card data-card" id="batch-import-card">
             <h2><i class="fa-solid fa-folder-open text-warning"></i> Importación Inteligente Masiva</h2>
-            <p>Sube una carpeta completa o selecciona múltiples archivos a la vez (boletas antiguas, notas escritas a mano, planillas CSV). La app las clasificará y ordenará de forma automática usando OCR local.</p>
+            <p>Sube una carpeta completa o selecciona múltiples archivos a la vez (boletas, notas, CSV o GPX de Beeline). La app las clasificará de forma automática.</p>
             
             <div class="ocr-upload-area" id="batch-dropzone" style="margin-top: 15px;">
               <i class="fa-solid fa-folder-plus upload-icon" style="font-size: 2.5rem; color: var(--accent-gold);"></i>
               <span class="upload-text">Arrastra aquí tus archivos/carpetas o haz clic para seleccionar</span>
-              <input type="file" id="batch-file-input" multiple accept="image/*, .csv" style="display: none;">
+              <input type="file" id="batch-file-input" multiple accept="image/*, .csv, .gpx" style="display: none;">
             </div>
           </div>
           
@@ -811,6 +823,13 @@
               <label for="fuel-station">Bencinera / Notas</label>
               <input type="text" id="fuel-station" class="form-control" placeholder="Ej: Copec / Shell">
             </div>
+          </div>
+          <div class="form-group">
+            <label for="fuel-ride-id">Viaje Beeline (GPX)</label>
+            <select id="fuel-ride-id" class="form-control">
+              <option value="">Sin viaje GPS</option>
+            </select>
+            <p class="text-muted" style="font-size: 0.75rem; margin-top: 4px;">Opcional. Compara km GPS con el odómetro de esta carga.</p>
           </div>
           
           <!-- Storing image base64 locally (staging only; persisted in IndexedDB) -->
