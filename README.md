@@ -11,10 +11,10 @@ Aplicación web (SPA) para dueños de la **Honda Goldwing GL-1000 (1975–1979)*
 | Área | Qué hace |
 |------|----------|
 | **Tablero** | Diales de eficiencia y autonomía, odómetro mecánico, luces de servicio |
-| **Bencina** | Cargas manuales o por OCR de boleta, gráfico Chart.js, calculadora de aditivos |
+| **Bencina** | Cargas, OCR, gráfico, aditivos; km GPS de Beeline (GPX) para contrastar el odómetro |
 | **Mantenimiento** | Historial, intervalos GL-1000, guía del depósito falso (shelter), OCR de notas |
 | **Guía de panas** | Problemas clásicos del boxer + diagnóstico de bujías + ajuste por altitud |
-| **Ajustes** | Año/odómetro/moneda, export-import JSON (con fotos), aviso de respaldo, CSV/TSV, importación masiva por carpeta |
+| **Ajustes** | Año/odómetro/moneda, backup JSON, CSV, **GPX Beeline**, importación masiva |
 
 Datos **100 % locales**. Historial en `localStorage`; fotos de boletas en IndexedDB. El OCR corre en el navegador con Tesseract.js; no se envían fotos a un servidor. En **Ajustes** descarga un JSON de respaldo (incluye fotos) y guárdalo fuera del teléfono.
 

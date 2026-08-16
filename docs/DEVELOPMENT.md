@@ -81,6 +81,12 @@ if (state.settings.nuevoCampo === undefined) {
 - Tras cambios, prueba: `;`, `,`, TSV, fechas verbales, odómetro 0, duplicados.
 - Actualiza la plantilla del botón `btn-download-csv-template` si cambian columnas.
 
+## GPX Beeline (complemento de bencina)
+
+- Parser: `parseGpxText` / `importParsedRide`. No guardar la polilínea.
+- Probar un GPX `ridden` real: km > 0, fecha, ligue a carga del mismo día, duplicado al reimportar.
+- En la tabla de bencina debe aparecer `GPS xx km · yy km/L` si está ligado.
+
 ## Debugging útil
 
 | Problema | Dónde mirar |
@@ -107,7 +113,7 @@ Cuando se añadan tests, documentar el comando aquí (ver ROADMAP).
 
 ## PWA / service worker
 
-Tras cambiar `index.html`, `app.js`, `style.css` o assets del shell, sube `CACHE_VERSION` en `sw.js` (ahora `goldwinggas-v3`) para forzar recacheo en clientes ya instalados.
+Tras cambiar `index.html`, `app.js`, `style.css` o assets del shell, sube `CACHE_VERSION` en `sw.js` (ahora `goldwinggas-v4`) para forzar recacheo en clientes ya instalados.
 
 El SW precachea Chart.js, Tesseract (script) y Font Awesome. Worker/WASM/idioma `spa` se calientan en segundo plano al abrir la app con red (`warmOcrCache`). Sin conexión, el tablero funciona; el OCR solo si esos assets ya están en caché.
 

@@ -2,6 +2,7 @@
 let state = {
   fuelLogs: [],
   maintLogs: [],
+  rides: [],
   shelterChecks: {
     airFilter: '',
     fuses: '',
@@ -407,6 +408,9 @@ function ensureSettingsDefaults() {
   if (!state.shelterChecks) {
     state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
   }
+  if (!Array.isArray(state.rides)) {
+    state.rides = [];
+  }
 }
 
 function ensureLogIds(logs) {
@@ -441,6 +445,8 @@ function persistableState() {
   const stripInlinePhotos = photoDbAvailable;
   (clone.fuelLogs || []).forEach((log) => {
     delete log.efficiency;
+    delete log.gpsKm;
+    delete log.gpsEfficiency;
     if (stripInlinePhotos && isDataUrl(log.image)) log.image = '';
   });
   (clone.maintLogs || []).forEach((log) => {
@@ -472,6 +478,7 @@ async function loadData() {
 function seedState() {
   state.fuelLogs = SEED_FUEL_LOGS.map((log) => ({ ...log }));
   state.maintLogs = SEED_MAINT_LOGS.map((log) => ({ ...log }));
+  state.rides = [];
   state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
   state.settings = {
     modelYear: '1978',
@@ -488,9 +495,284 @@ function saveData() {
   } catch (e) {
     console.error('Error al guardar localStorage', e);
     if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
-      showToast('El almacenamiento del navegador está lleno. Descarga un respaldo JSON desde Ajustes.', 'error');
+      notifyUser('El almacenamiento del navegador está lleno. Descarga un respaldo JSON desde Ajustes y libera espacio.', 'error');
     }
   }
+}
+
+function notifyUser(message, type) {
+  if (typeof showToast === 'function') {
+    showToast(message, type || 'info');
+    return;
+  }
+  alert(message);
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
+function haversineKm(a, b) {
+  const R = 6371;
+  const toRad = (deg) => deg * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const sinLat = Math.sin(dLat / 2);
+  const sinLon = Math.sin(dLon / 2);
+  const h = sinLat * sinLat + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinLon * sinLon;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function gpxElements(doc, tag) {
+  const namespaces = [
+    'http://www.topografix.com/GPX/1/1',
+    'http://www.topografix.com/GPX/1/0'
+  ];
+  let nodes = [];
+  namespaces.forEach((ns) => {
+    nodes = nodes.concat(Array.from(doc.getElementsByTagNameNS(ns, tag)));
+  });
+  if (!nodes.length) nodes = Array.from(doc.getElementsByTagName(tag));
+  return nodes;
+}
+
+function isoDateFromGpxTime(raw) {
+  if (!raw) return '';
+  const d = new Date(raw.trim());
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().split('T')[0];
+}
+
+function addIsoDays(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+function parseGpxText(xmlText, fileName) {
+  const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+  if (doc.querySelector('parsererror')) {
+    throw new Error('El archivo GPX no es XML válido.');
+  }
+
+  const trk = gpxElements(doc, 'trk')[0];
+  const rte = gpxElements(doc, 'rte')[0];
+  const meta = gpxElements(doc, 'metadata')[0];
+  const nameFrom = (el) => {
+    if (!el) return '';
+    const n = gpxElements(el, 'name')[0];
+    return n ? n.textContent.trim() : '';
+  };
+  const metaName = nameFrom(trk) || nameFrom(rte) || nameFrom(meta);
+  const fallbackName = (fileName || 'Viaje Beeline').replace(/\.gpx$/i, '');
+
+  let pts = gpxElements(doc, 'trkpt');
+  if (!pts.length) pts = gpxElements(doc, 'rtept');
+
+  const points = pts.map((el) => {
+    const timeEl = gpxElements(el, 'time')[0];
+    return {
+      lat: parseFloat(el.getAttribute('lat')),
+      lon: parseFloat(el.getAttribute('lon')),
+      time: timeEl ? timeEl.textContent.trim() : ''
+    };
+  }).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+
+  if (points.length < 2) {
+    throw new Error('El GPX no trae una traza suficiente (mínimo 2 puntos). Exporta la ruta recorrida desde Beeline.');
+  }
+
+  let distanceKm = 0;
+  for (let i = 1; i < points.length; i++) {
+    distanceKm += haversineKm(points[i - 1], points[i]);
+  }
+
+  const timed = points.filter((p) => p.time);
+  const startTime = timed.length ? timed[0].time : '';
+  const endTime = timed.length ? timed[timed.length - 1].time : '';
+  let durationMin = null;
+  if (startTime && endTime) {
+    const ms = new Date(endTime).getTime() - new Date(startTime).getTime();
+    if (Number.isFinite(ms) && ms > 0) durationMin = Math.round(ms / 60000);
+  }
+
+  return {
+    name: metaName || fallbackName,
+    date: isoDateFromGpxTime(startTime) || isoDateFromGpxTime(endTime),
+    distanceKm: Math.round(distanceKm * 10) / 10,
+    durationMin,
+    pointCount: points.length,
+    startedAt: startTime,
+    endedAt: endTime
+  };
+}
+
+function rideForFuelLog(log) {
+  if (!log || !log.id || !Array.isArray(state.rides)) return null;
+  return state.rides.find((r) => r.fuelLogId === log.id) || null;
+}
+
+function usedRideFuelIds() {
+  return new Set((state.rides || []).map((r) => r.fuelLogId).filter(Boolean));
+}
+
+function fuelSegmentKm(log) {
+  const initialOdo = parseInt(state.settings.initialOdo, 10) || 0;
+  const sorted = [...state.fuelLogs].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const idx = sorted.findIndex((l) => l === log || l.id === log.id);
+  if (idx < 0) return 0;
+  const current = parseInt(sorted[idx].odometer, 10) || 0;
+  if (!current) return 0;
+  let prev = initialOdo;
+  for (let j = idx - 1; j >= 0; j--) {
+    if (sorted[j].odometer > 0) {
+      prev = sorted[j].odometer;
+      break;
+    }
+  }
+  return current > prev ? current - prev : 0;
+}
+
+function matchFuelLogForRide(ride) {
+  const used = usedRideFuelIds();
+  const dates = [ride.date, addIsoDays(ride.date, 1)].filter(Boolean);
+  const candidates = state.fuelLogs.filter((l) => !used.has(l.id) && dates.includes(l.date));
+  if (!candidates.length) return null;
+  if (candidates.length === 1) return candidates[0];
+  let best = candidates[0];
+  let bestDelta = Infinity;
+  candidates.forEach((log) => {
+    const seg = fuelSegmentKm(log);
+    const delta = Math.abs(seg - ride.distanceKm);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = log;
+    }
+  });
+  return best;
+}
+
+function isDuplicateRide(ride) {
+  return (state.rides || []).some((existing) => {
+    if (existing.date !== ride.date) return false;
+    return Math.abs((existing.distanceKm || 0) - ride.distanceKm) < 1;
+  });
+}
+
+function importParsedRide(parsed, source) {
+  if (isDuplicateRide(parsed)) {
+    return { status: 'duplicate', ride: null };
+  }
+  const ride = {
+    id: createLogId(),
+    source: source || 'beeline',
+    name: parsed.name,
+    date: parsed.date || '',
+    distanceKm: parsed.distanceKm,
+    durationMin: parsed.durationMin,
+    pointCount: parsed.pointCount,
+    fuelLogId: ''
+  };
+  const match = ride.date ? matchFuelLogForRide(ride) : null;
+  if (match) ride.fuelLogId = match.id;
+  state.rides.push(ride);
+  return { status: 'ok', ride, linked: !!match };
+}
+
+function unlinkRidesFromFuel(fuelLogId) {
+  (state.rides || []).forEach((ride) => {
+    if (ride.fuelLogId === fuelLogId) ride.fuelLogId = '';
+  });
+}
+
+function populateFuelRideSelect(currentFuelId, selectedRideId) {
+  const select = document.getElementById('fuel-ride-id');
+  if (!select) return;
+  const current = selectedRideId || '';
+  const options = ['<option value="">Sin viaje GPS</option>'];
+  (state.rides || []).forEach((ride) => {
+    const taken = ride.fuelLogId && ride.fuelLogId !== currentFuelId;
+    if (taken) return;
+    const dur = ride.durationMin ? ` · ${ride.durationMin} min` : '';
+    const label = `${ride.date || 's/fecha'} — ${ride.distanceKm.toFixed(1)} km${dur} — ${ride.name}`;
+    const sel = ride.id === current ? ' selected' : '';
+    options.push(`<option value="${ride.id}"${sel}>${escapeHtml(label)}</option>`);
+  });
+  select.innerHTML = options.join('');
+}
+
+function renderRidesList() {
+  const list = document.getElementById('rides-list');
+  if (!list) return;
+  const rides = [...(state.rides || [])].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  if (!rides.length) {
+    list.innerHTML = '<p class="text-muted" style="font-size: 0.8rem; margin: 8px 0 0;">Todavía no hay viajes GPS. Exporta un GPX <em>ridden</em> desde Beeline.</p>';
+    return;
+  }
+  list.innerHTML = rides.map((ride) => {
+    const fuel = state.fuelLogs.find((l) => l.id === ride.fuelLogId);
+    const link = fuel
+      ? `ligado a carga del ${new Date(fuel.date).toLocaleDateString('es-ES', { timeZone: 'UTC' })} (${fuel.odometer.toLocaleString()} km)`
+      : 'sin carga asociada';
+    const dur = ride.durationMin ? ` · ${ride.durationMin} min` : '';
+    return `<div class="ride-row">
+      <div>
+        <strong>${escapeHtml(ride.name)}</strong>
+        <span class="text-muted">${ride.date || 's/fecha'} · ${ride.distanceKm.toFixed(1)} km${dur}<br>${escapeHtml(link)}</span>
+      </div>
+      <button type="button" class="btn-icon btn-icon-danger" onclick="deleteRide('${ride.id}')" title="Quitar viaje"><i class="fa-solid fa-trash-can"></i></button>
+    </div>`;
+  }).join('');
+}
+
+window.deleteRide = function(rideId) {
+  if (!confirm('¿Quitar este viaje GPS de la bitácora? No borra la carga de bencina.')) return;
+  state.rides = (state.rides || []).filter((r) => r.id !== rideId);
+  saveData();
+  updateUI();
+};
+
+async function importGpxFiles(fileList) {
+  const files = Array.from(fileList || []).filter((f) => /\.gpx$/i.test(f.name) || f.type.includes('gpx'));
+  if (!files.length) {
+    notifyUser('Selecciona un archivo .gpx exportado desde Beeline.', 'error');
+    return;
+  }
+  let imported = 0;
+  let linked = 0;
+  let duplicates = 0;
+  let errors = 0;
+  for (const file of files) {
+    try {
+      const text = await readFileAsText(file);
+      const parsed = parseGpxText(text, file.name);
+      const result = importParsedRide(parsed, 'beeline');
+      if (result.status === 'duplicate') duplicates++;
+      else {
+        imported++;
+        if (result.linked) linked++;
+      }
+    } catch (err) {
+      console.error(err);
+      errors++;
+    }
+  }
+  if (imported) saveData();
+  updateUI();
+  notifyUser(
+    `GPX: ${imported} viaje(s) importado(s)` +
+      (linked ? `, ${linked} ligado(s) a una carga` : '') +
+      (duplicates ? `, ${duplicates} duplicado(s)` : '') +
+      (errors ? `, ${errors} con error` : '') + '.',
+    imported ? 'success' : 'error'
+  );
 }
 
 // Navigation Tabs
@@ -566,6 +848,7 @@ function updateUI() {
   }
 
   updateBackupStatus();
+  renderRidesList();
 }
 
 // Update Odometer display in the header (mechanical drum look)
@@ -655,6 +938,15 @@ function calculateStats() {
       efficiencyCounts++;
     } else {
       state.fuelLogs[i].efficiency = null;
+    }
+
+    const ride = rideForFuelLog(state.fuelLogs[i]);
+    if (ride && ride.distanceKm > 0 && state.fuelLogs[i].liters > 0) {
+      state.fuelLogs[i].gpsKm = ride.distanceKm;
+      state.fuelLogs[i].gpsEfficiency = ride.distanceKm / state.fuelLogs[i].liters;
+    } else {
+      state.fuelLogs[i].gpsKm = null;
+      state.fuelLogs[i].gpsEfficiency = null;
     }
   }
   
@@ -785,6 +1077,9 @@ function renderFuelLogsTable() {
     const efficiencyDisplay = log.efficiency 
       ? `<strong>${log.efficiency.toFixed(2)}</strong> km/L<br><span class="text-muted">${(100/log.efficiency).toFixed(2)} L/100km</span>`
       : '<span class="text-muted">N/A (Carga inicial)</span>';
+    const gpsNote = (log.gpsKm && log.gpsEfficiency)
+      ? `<br><span class="gps-fuel-note" title="Kilómetros del GPX Beeline"><i class="fa-solid fa-route"></i> GPS ${log.gpsKm.toFixed(1)} km · ${log.gpsEfficiency.toFixed(2)} km/L</span>`
+      : '';
       
     const hasPhoto = logHasPhoto(log)
       ? `<button class="ticket-attachment-btn" onclick="viewPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> Ver boleta</button>`
@@ -796,7 +1091,7 @@ function renderFuelLogsTable() {
       <td><strong>${log.odometer.toLocaleString()} km</strong></td>
       <td>${log.liters.toFixed(2)} L</td>
       <td>${state.settings.currency}${log.cost.toLocaleString()}</td>
-      <td>${efficiencyDisplay}</td>
+      <td>${efficiencyDisplay}${gpsNote}</td>
       <td>${hasPhoto}</td>
       <td><span class="tag-badge ${log.type.toLowerCase()}">${log.type}</span>${log.station ? '<br><small class="text-muted">' + log.station + '</small>' : ''}${log.notes ? '<p class="text-muted" style="font-size: 0.75rem; margin-top:2px;">' + log.notes + '</p>' : ''}</td>
       <td>
@@ -947,6 +1242,7 @@ function initFormListeners() {
         
         // Set date to today
         document.getElementById('fuel-date').value = todayIsoDate();
+        populateFuelRideSelect('', '');
         
         fuelModal.classList.add('open');
       });
@@ -974,6 +1270,7 @@ function initFormListeners() {
     const station = document.getElementById('fuel-station').value;
     const imageData = document.getElementById('fuel-image-data').value;
     const existingPhotoId = document.getElementById('fuel-photo-id').value;
+    const rideId = document.getElementById('fuel-ride-id') ? document.getElementById('fuel-ride-id').value : '';
     
     const check = validateFuelEntry({ date, odometer, liters, cost, index });
     if (check.error) {
@@ -1006,6 +1303,12 @@ function initFormListeners() {
       state.fuelLogs.push(logData);
     } else {
       state.fuelLogs[index] = { ...previous, ...logData };
+    }
+
+    unlinkRidesFromFuel(logData.id);
+    if (rideId) {
+      const ride = (state.rides || []).find((r) => r.id === rideId);
+      if (ride) ride.fuelLogId = logData.id;
     }
     
     saveData();
@@ -1169,12 +1472,23 @@ function initFormListeners() {
       fileReader.readAsText(e.target.files[0], 'UTF-8');
     }
   });
+
+  const gpxInput = document.getElementById('input-import-gpx');
+  if (gpxInput) {
+    gpxInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length) {
+        importGpxFiles(e.target.files);
+        e.target.value = '';
+      }
+    });
+  }
   
   // Clear/Reset Data
   document.getElementById('btn-reset-data').addEventListener('click', async () => {
     if (confirm('¿Estás seguro de que deseas borrar por completo todo el historial? Esta acción vaciará la base de datos para que puedas importar tus propios datos.')) {
       state.fuelLogs = [];
       state.maintLogs = [];
+      state.rides = [];
       state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
       state.settings.initialOdo = 0;
       state.settings.lastBackupAt = '';
@@ -1200,6 +1514,8 @@ window.editFuelLog = async function(index) {
   document.getElementById('fuel-station').value = log.station || '';
   document.getElementById('fuel-image-data').value = '';
   document.getElementById('fuel-photo-id').value = log.photoId || '';
+  const linkedRide = rideForFuelLog(log);
+  populateFuelRideSelect(log.id, linkedRide ? linkedRide.id : '');
   
   // Pre-fill image view if edit contains ticket image
   const previewContainer = document.getElementById('ocr-preview-container');
@@ -1224,6 +1540,7 @@ window.deleteFuelLog = async function(index) {
   if (confirm('¿Eliminar este registro de bencina?')) {
     const log = state.fuelLogs[index];
     if (log && log.photoId) await deletePhoto(log.photoId);
+    if (log && log.id) unlinkRidesFromFuel(log.id);
     state.fuelLogs.splice(index, 1);
     saveData();
     updateUI();
@@ -1992,6 +2309,19 @@ async function processBatchFiles(files) {
         statusDiv.style.borderLeftColor = 'var(--accent-green)';
         statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-green);">Éxito.</span> Se agregaron ${report.imported} registros (omitidos: ${report.duplicates} duplicados, ${report.errors} errores).`;
         successCount++;
+      } else if (file.name.toLowerCase().endsWith('.gpx')) {
+        const gpxText = await readFileAsText(file);
+        const parsed = parseGpxText(gpxText, file.name);
+        const result = importParsedRide(parsed, 'beeline');
+        if (result.status === 'duplicate') {
+          statusDiv.style.borderLeftColor = 'var(--accent-gold)';
+          statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-gold);">Omitido.</span> Viaje duplicado (${parsed.distanceKm} km).`;
+        } else {
+          statusDiv.style.borderLeftColor = 'var(--accent-green)';
+          const linked = result.linked ? ' ligado a una carga' : ' sin carga ese día';
+          statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-green);">[Beeline]</span> ${parsed.distanceKm} km${linked}.`;
+          successCount++;
+        }
       } else if (file.type.startsWith('image/')) {
         const base64 = await readFileAsDataURL(file);
         if (!(await canRunOcr())) {
@@ -2840,6 +3170,7 @@ async function importBackupPayload(importedState) {
   ensureSettingsDefaults();
   ensureLogIds(state.fuelLogs);
   ensureLogIds(state.maintLogs);
+  if (!Array.isArray(state.rides)) state.rides = [];
   await clearAllPhotos();
   for (const [id, dataUrl] of Object.entries(photos)) {
     if (isDataUrl(dataUrl)) await putPhoto(id, dataUrl);
