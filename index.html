@@ -29,12 +29,17 @@
   <link rel="stylesheet" href="style.css">
   
   <!-- Chart.js for graphs -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
   
   <!-- Tesseract.js for local OCR -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
+  <div id="offline-banner" class="offline-banner" hidden>
+    <i class="fa-solid fa-wifi"></i>
+    <span id="offline-banner-text">Sin conexión. El tablero usa datos locales. El OCR necesita red la primera vez; después queda en caché.</span>
+  </div>
+  <div id="toast-stack" class="toast-stack" aria-live="polite" aria-relevant="additions"></div>
   <div class="app-container">
     
     <!-- Top Header -->
@@ -757,6 +762,7 @@
         <div class="ocr-section">
           <h3>Escanear Foto de Boleta + Odómetro</h3>
           <p class="text-muted">Sube una foto de tu boleta colocada al lado del cuentakilómetros para extraer la información de forma automática.</p>
+          <p class="ocr-network-hint" id="ocr-fuel-network-hint" hidden>Sin conexión y el motor OCR aún no está en caché. Puedes cargar la foto igual y completar los datos a mano.</p>
           
           <div class="ocr-upload-area" id="ocr-dropzone">
             <i class="fa-solid fa-camera-rotate upload-icon"></i>
@@ -859,6 +865,7 @@
         <div class="ocr-section">
           <h3>Escanear Nota del Mecánico / Recibo</h3>
           <p class="text-muted">Sube una foto de la nota manuscrita de tu mecánico para extraer los detalles, fecha y costos usando OCR local.</p>
+          <p class="ocr-network-hint" id="ocr-maint-network-hint" hidden>Sin conexión y el motor OCR aún no está en caché. Puedes adjuntar la foto y completar los datos a mano.</p>
           
           <div class="ocr-upload-area" id="ocr-maint-dropzone">
             <i class="fa-solid fa-camera-rotate upload-icon"></i>

@@ -68,8 +68,9 @@ async function bootApp() {
   initSparkPlugDiag();
   initPwaInstall();
   initBackupUi();
-  
+  initConnectivityUi();
   updateUI();
+  warmOcrCache();
 }
 
 function createLogId() {
@@ -83,6 +84,182 @@ function isDataUrl(value) {
 
 function logHasPhoto(log) {
   return !!(log && (log.photoId || isDataUrl(log.image)));
+}
+
+const TESSERACT_LANG = 'spa';
+const TESSERACT_WORKER_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js';
+const TESSERACT_CORE_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/tesseract-core.wasm.js';
+const TESSERACT_LANG_PATH = 'https://tessdata.projectnaptha.com/4.0.0';
+const TESSERACT_LANG_DATA = `${TESSERACT_LANG_PATH}/${TESSERACT_LANG}.traineddata.gz`;
+
+let ocrAssetsCached = false;
+
+function showToast(message, type = 'info') {
+  const stack = document.getElementById('toast-stack');
+  if (!stack) {
+    console.log(`[${type}]`, message);
+    return;
+  }
+  const el = document.createElement('div');
+  el.className = `toast is-${type}`;
+  el.textContent = message;
+  stack.appendChild(el);
+  setTimeout(() => {
+    el.remove();
+  }, type === 'error' ? 6000 : 3800);
+}
+
+function todayIsoDate() {
+  const d = new Date();
+  const offset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offset).toISOString().split('T')[0];
+}
+
+function maxFuelOdometerExcluding(excludeIndex) {
+  let max = 0;
+  state.fuelLogs.forEach((log, i) => {
+    if (excludeIndex >= 0 && i === excludeIndex) return;
+    const odo = parseInt(log.odometer, 10) || 0;
+    if (odo > max) max = odo;
+  });
+  return max;
+}
+
+function validateLogDate(date) {
+  if (!date) return { error: 'Indica la fecha.' };
+  if (date > todayIsoDate()) return { error: 'La fecha no puede ser futura.' };
+  return null;
+}
+
+function validateOdometerValue(odometer) {
+  const initialOdo = parseInt(state.settings.initialOdo, 10) || 0;
+  if (Number.isNaN(odometer) || odometer < 0) return { error: 'Kilometraje inválido.' };
+  if (odometer < initialOdo) {
+    return { error: `El kilometraje no puede ser inferior al odómetro inicial (${initialOdo.toLocaleString()} km).` };
+  }
+  return null;
+}
+
+function validateFuelEntry({ date, odometer, liters, cost, index }) {
+  const dateErr = validateLogDate(date);
+  if (dateErr) return dateErr;
+  const odoErr = validateOdometerValue(odometer);
+  if (odoErr) return odoErr;
+  if (Number.isNaN(liters) || liters <= 0) return { error: 'Los litros deben ser mayores que 0.' };
+  if (liters > 30) {
+    return { warn: '¿Más de 30 L? El estanque de la GL-1000 ronda los 19 L. ¿Guardar igual?' };
+  }
+  if (Number.isNaN(cost) || cost < 0) return { error: 'El costo no es válido.' };
+  if (cost === 0) return { warn: 'El costo es 0. ¿Guardar igual?' };
+  const lastOdo = maxFuelOdometerExcluding(index);
+  if (odometer > 0 && lastOdo > 0 && odometer < lastOdo) {
+    return {
+      warn: `El odómetro (${odometer.toLocaleString()} km) es menor que la última carga (${lastOdo.toLocaleString()} km). ¿Guardar igual?`
+    };
+  }
+  return { ok: true };
+}
+
+function tesseractOptions(logger) {
+  const opts = {
+    workerPath: TESSERACT_WORKER_URL,
+    corePath: TESSERACT_CORE_URL,
+    langPath: TESSERACT_LANG_PATH
+  };
+  if (logger) opts.logger = logger;
+  return opts;
+}
+
+function tesseractAvailable() {
+  return typeof Tesseract !== 'undefined' && typeof Tesseract.recognize === 'function';
+}
+
+async function areOcrAssetsCached() {
+  if (!('caches' in window)) return false;
+  try {
+    const match = await caches.match(TESSERACT_WORKER_URL);
+    const lang = await caches.match(TESSERACT_LANG_DATA);
+    return !!(match && lang);
+  } catch (err) {
+    return false;
+  }
+}
+
+async function warmOcrCache() {
+  if (!navigator.onLine) {
+    ocrAssetsCached = await areOcrAssetsCached();
+    updateOcrNetworkHints();
+    return;
+  }
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
+    TESSERACT_WORKER_URL,
+    TESSERACT_CORE_URL,
+    TESSERACT_LANG_DATA
+  ];
+  try {
+    await Promise.all(urls.map((url) => fetch(url, { mode: 'cors' }).catch(() => null)));
+    ocrAssetsCached = true;
+  } catch (err) {
+    ocrAssetsCached = await areOcrAssetsCached();
+  }
+  updateOcrNetworkHints();
+}
+
+function updateOcrNetworkHints() {
+  const offline = !navigator.onLine;
+  const ocrBlocked = offline && !ocrAssetsCached;
+  ['ocr-fuel-network-hint', 'ocr-maint-network-hint'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = !ocrBlocked;
+  });
+}
+
+function initConnectivityUi() {
+  const banner = document.getElementById('offline-banner');
+  const text = document.getElementById('offline-banner-text');
+
+  const sync = async () => {
+    const offline = !navigator.onLine;
+    if (banner) banner.hidden = !offline;
+    if (offline) {
+      ocrAssetsCached = await areOcrAssetsCached();
+      if (text) {
+        text.textContent = ocrAssetsCached
+          ? 'Sin conexión. Tablero y OCR (en caché) disponibles. Recuerda respaldar el JSON de vez en cuando.'
+          : 'Sin conexión. El tablero usa datos locales. El OCR necesita red la primera vez; después queda en caché.';
+      }
+    }
+    updateOcrNetworkHints();
+  };
+
+  window.addEventListener('online', () => {
+    showToast('Conexión restablecida.', 'success');
+    warmOcrCache();
+    sync();
+  });
+  window.addEventListener('offline', () => {
+    showToast('Sin conexión. Sigues con los datos de este teléfono.', 'info');
+    sync();
+  });
+  sync();
+}
+
+async function canRunOcr() {
+  if (!tesseractAvailable()) return false;
+  if (navigator.onLine) return true;
+  if (!ocrAssetsCached) ocrAssetsCached = await areOcrAssetsCached();
+  return ocrAssetsCached;
+}
+
+async function guardOcrOrExplain() {
+  if (!tesseractAvailable()) {
+    showToast('El motor OCR no cargó. Completa los datos a mano.', 'error');
+    return false;
+  }
+  if (await canRunOcr()) return true;
+  showToast('Sin conexión: OCR no disponible todavía. La foto se adjunta; completa los campos a mano.', 'info');
+  return false;
 }
 
 function openPhotoDb() {
@@ -967,7 +1144,10 @@ function renderMaintLogsTable() {
 // Chart.js Graph Rendering
 let fuelChart = null;
 function renderFuelChart() {
-  const ctx = document.getElementById('fuelChart').getContext('2d');
+  if (typeof Chart === 'undefined') return;
+  const canvas = document.getElementById('fuelChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
   
   // Clean logs with valid efficiency numbers, sorted chronologically
   const chartData = state.fuelLogs
@@ -1061,7 +1241,7 @@ function initFormListeners() {
         document.getElementById('ocr-file-input').value = '';
         
         // Set date to today
-        document.getElementById('fuel-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('fuel-date').value = todayIsoDate();
         populateFuelRideSelect('', '');
         
         fuelModal.classList.add('open');
@@ -1092,11 +1272,12 @@ function initFormListeners() {
     const existingPhotoId = document.getElementById('fuel-photo-id').value;
     const rideId = document.getElementById('fuel-ride-id') ? document.getElementById('fuel-ride-id').value : '';
     
-    // Validation
-    const initialOdo = parseInt(state.settings.initialOdo) || 0;
-    
-    if (odometer < initialOdo) {
-      alert(`El kilometraje no puede ser inferior al odómetro inicial establecido (${initialOdo.toLocaleString()} km).`);
+    const check = validateFuelEntry({ date, odometer, liters, cost, index });
+    if (check.error) {
+      showToast(check.error, 'error');
+      return;
+    }
+    if (check.warn && !confirm(check.warn)) {
       return;
     }
     
@@ -1133,6 +1314,7 @@ function initFormListeners() {
     saveData();
     updateUI();
     fuelModal.classList.remove('open');
+    showToast(index === -1 ? 'Carga de bencina guardada.' : 'Carga de bencina actualizada.', 'success');
   });
   
   // Maintenance Modal open buttons
@@ -1153,7 +1335,7 @@ function initFormListeners() {
         document.getElementById('ocr-maint-results-alert').style.display = 'none';
         document.getElementById('ocr-maint-file-input').value = '';
         
-        document.getElementById('maint-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('maint-date').value = todayIsoDate();
         maintModal.classList.add('open');
       });
     }
@@ -1180,9 +1362,14 @@ function initFormListeners() {
     const imageData = document.getElementById('maint-image-data').value;
     const existingPhotoId = document.getElementById('maint-photo-id').value;
     
-    const initialOdo = parseInt(state.settings.initialOdo) || 0;
-    if (odometer < initialOdo) {
-      alert(`El kilometraje no puede ser inferior al odómetro inicial establecido (${initialOdo.toLocaleString()} km).`);
+    const dateErr = validateLogDate(date);
+    if (dateErr) {
+      showToast(dateErr.error, 'error');
+      return;
+    }
+    const odoErr = validateOdometerValue(odometer);
+    if (odoErr) {
+      showToast(odoErr.error, 'error');
       return;
     }
     
@@ -1211,6 +1398,7 @@ function initFormListeners() {
     saveData();
     updateUI();
     maintModal.classList.remove('open');
+    showToast(index === -1 ? 'Mantenimiento guardado.' : 'Mantenimiento actualizado.', 'success');
   });
   
   // Image Viewer Close
@@ -1229,7 +1417,7 @@ function initFormListeners() {
     
     saveData();
     updateUI();
-    alert('Configuración de la moto guardada con éxito.');
+    showToast('Configuración de la moto guardada.', 'success');
   });
   
   // Export/Import JSON data
@@ -1247,12 +1435,12 @@ function initFormListeners() {
         const ok = await importBackupPayload(importedState);
         if (ok) {
           updateUI();
-          alert('¡Datos respaldados cargados correctamente!');
+          showToast('Datos respaldados cargados correctamente.', 'success');
         } else {
-          alert('El formato del archivo JSON no coincide con el esquema requerido.');
+          showToast('El formato del archivo JSON no coincide con el esquema requerido.', 'error');
         }
       } catch (err) {
-        alert('Error al leer el archivo JSON: ' + err.message);
+        showToast('Error al leer el archivo JSON: ' + err.message, 'error');
       }
       e.target.value = '';
     };
@@ -1308,7 +1496,7 @@ function initFormListeners() {
       await clearAllPhotos();
       saveData();
       updateUI();
-      alert('Se han borrado todos los registros. La base de datos está vacía y lista para importar tu planilla.');
+      showToast('Historial borrado. La bitácora quedó vacía.', 'success');
     }
   });
 }
@@ -1491,13 +1679,11 @@ function initOcrEngine() {
 // Convert uploaded file to base64 & run Tesseract.js OCR engine
 function handleOcrImage(file) {
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     const base64Data = e.target.result;
     
-    // Save image to hidden form input
     document.getElementById('fuel-image-data').value = base64Data;
     
-    // Render UI loading/scanning animations
     const previewContainer = document.getElementById('ocr-preview-container');
     const previewImg = document.getElementById('ocr-preview-img');
     const laser = document.getElementById('scanner-laser');
@@ -1506,35 +1692,36 @@ function handleOcrImage(file) {
     
     previewContainer.style.display = 'block';
     previewImg.src = base64Data;
+    alertResult.style.display = 'none';
+
+    const canOcr = await guardOcrOrExplain();
+    if (!canOcr) {
+      laser.style.display = 'none';
+      statusOverlay.style.display = 'none';
+      return;
+    }
+    
     laser.style.display = 'block';
     statusOverlay.style.display = 'flex';
     statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Cargando Tesseract OCR...`;
-    alertResult.style.display = 'none';
     
-    // Call Tesseract.js
     Tesseract.recognize(
       base64Data,
-      'spa', // Spanish model
-      { 
-        logger: m => {
-          if (m.status === 'recognizing') {
-            statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo boleta: ${Math.round(m.progress * 100)}%`;
-          }
+      TESSERACT_LANG,
+      tesseractOptions((m) => {
+        if (m.status === 'recognizing') {
+          statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo boleta: ${Math.round(m.progress * 100)}%`;
         }
-      }
+      })
     ).then(({ data: { text } }) => {
-      // Hide scanner overlays
       laser.style.display = 'none';
       statusOverlay.style.display = 'none';
-      
-      // Parse text details
       parseOcrResults(text);
-      
     }).catch(err => {
       console.error("Tesseract Engine OCR error: ", err);
       laser.style.display = 'none';
       statusOverlay.style.display = 'none';
-      alert("Hubo un error procesando la imagen con OCR: " + err.message + ". Puedes rellenar los datos manualmente.");
+      showToast('Error de OCR: ' + err.message + '. Completa los datos a mano.', 'error');
     });
   };
   
@@ -1680,13 +1867,11 @@ function parseOcrResults(text) {
 // Convert uploaded file to base64 & run Tesseract.js OCR for maintenance notes
 function handleMaintOcrImage(file) {
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     const base64Data = e.target.result;
     
-    // Save image to hidden form input
     document.getElementById('maint-image-data').value = base64Data;
     
-    // Render UI loading/scanning animations
     const previewContainer = document.getElementById('ocr-maint-preview-container');
     const previewImg = document.getElementById('ocr-maint-preview-img');
     const laser = document.getElementById('scanner-maint-laser');
@@ -1695,35 +1880,36 @@ function handleMaintOcrImage(file) {
     
     previewContainer.style.display = 'block';
     previewImg.src = base64Data;
+    alertResult.style.display = 'none';
+
+    const canOcr = await guardOcrOrExplain();
+    if (!canOcr) {
+      laser.style.display = 'none';
+      statusOverlay.style.display = 'none';
+      return;
+    }
+    
     laser.style.display = 'block';
     statusOverlay.style.display = 'flex';
     statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Cargando Tesseract OCR...`;
-    alertResult.style.display = 'none';
     
-    // Call Tesseract.js
     Tesseract.recognize(
       base64Data,
-      'spa', // Spanish model
-      { 
-        logger: m => {
-          if (m.status === 'recognizing') {
-            statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo nota: ${Math.round(m.progress * 100)}%`;
-          }
+      TESSERACT_LANG,
+      tesseractOptions((m) => {
+        if (m.status === 'recognizing') {
+          statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo nota: ${Math.round(m.progress * 100)}%`;
         }
-      }
+      })
     ).then(({ data: { text } }) => {
-      // Hide scanner overlays
       laser.style.display = 'none';
       statusOverlay.style.display = 'none';
-      
-      // Parse text details
       parseMaintOcrResults(text);
-      
     }).catch(err => {
       console.error("Tesseract Engine OCR error (Maint): ", err);
       laser.style.display = 'none';
       statusOverlay.style.display = 'none';
-      alert("Hubo un error procesando la imagen con OCR: " + err.message + ". Puedes rellenar los datos manualmente.");
+      showToast('Error de OCR: ' + err.message + '. Completa los datos a mano.', 'error');
     });
   };
   
@@ -1890,7 +2076,7 @@ function parseAndImportCSV(text) {
   try {
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length < 2) {
-      alert("El archivo está vacío o no contiene registros.");
+      showToast('El archivo está vacío o no contiene registros.', 'error');
       return;
     }
     
@@ -1919,7 +2105,7 @@ function parseAndImportCSV(text) {
     let notesIdx = headers.findIndex(h => h.includes('not') || h.includes('coment') || h.includes('detall'));
     
     if (dateIdx === -1 || odoIdx === -1 || litersIdx === -1 || costIdx === -1) {
-      alert("No pudimos encontrar todas las columnas requeridas (Fecha, Kilometraje, Litros, Costo). Verifica las cabeceras de la planilla.");
+      showToast('Faltan columnas requeridas (Fecha, Kilometraje, Litros, Costo).', 'error');
       return;
     }
     
@@ -2001,10 +2187,10 @@ function parseAndImportCSV(text) {
     if (errorCount > 0) {
       summaryMsg += `- Filas con errores/vacías omitidas: ${errorCount}.\n`;
     }
-    alert(summaryMsg);
+    showToast(summaryMsg.replace(/\n/g, ' '), summaryMsg.includes('éxito') ? 'success' : 'info');
     
   } catch (err) {
-    alert("Error al procesar el archivo CSV: " + err.message);
+    showToast('Error al procesar el CSV: ' + err.message, 'error');
   }
 }
 
@@ -2058,7 +2244,7 @@ function initBatchImporter() {
       saveData();
       updateUI();
       document.getElementById('modal-batch-process').classList.remove('open');
-      alert("¡Importación masiva completada y guardada con éxito!");
+      showToast('Importación masiva guardada.', 'success');
     });
   }
   
@@ -2137,8 +2323,27 @@ async function processBatchFiles(files) {
           successCount++;
         }
       } else if (file.type.startsWith('image/')) {
-        // Handle Image OCR
         const base64 = await readFileAsDataURL(file);
+        if (!(await canRunOcr())) {
+          statusDiv.style.borderLeftColor = 'var(--accent-gold)';
+          statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-gold);">Foto guardada sin OCR</span> (sin red / motor no cacheado).`;
+          const fuelLog = {
+            id: createLogId(),
+            date: todayIsoDate(),
+            odometer: 0,
+            liters: 0,
+            cost: 0,
+            type: 'Turismo',
+            station: '',
+            notes: 'Foto importada sin OCR — completar a mano',
+            photoId: '',
+            image: ''
+          };
+          await attachPhotoToLog(fuelLog, base64);
+          state.fuelLogs.push(fuelLog);
+          successCount++;
+          continue;
+        }
         
         statusDiv.innerHTML = `<strong>${file.name}</strong>: <span class="text-muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Ejecutando OCR local...</span>`;
         
@@ -2242,23 +2447,18 @@ function readFileAsDataURL(file) {
 
 // Promise wrapper for Tesseract recognize
 function runTesseractOCR(base64, progressCallback) {
-  return new Promise((resolve, reject) => {
-    Tesseract.recognize(
-      base64,
-      'spa',
-      {
-        logger: m => {
-          if (m.status === 'recognizing') {
-            progressCallback(m.progress);
-          }
-        }
+  if (!tesseractAvailable()) {
+    return Promise.reject(new Error('Motor OCR no disponible'));
+  }
+  return Tesseract.recognize(
+    base64,
+    TESSERACT_LANG,
+    tesseractOptions((m) => {
+      if (m.status === 'recognizing') {
+        progressCallback(m.progress);
       }
-    ).then(({ data: { text } }) => {
-      resolve(text);
-    }).catch(err => {
-      reject(err);
-    });
-  });
+    })
+  ).then(({ data: { text } }) => text);
 }
 
 // Helper: format YYYY-MM-DD to DD/MM/YYYY
@@ -2511,7 +2711,7 @@ function initShelterGuide() {
       state.shelterChecks[selectedShelterComponent] = new Date().toISOString().split('T')[0];
       saveData();
       showShelterComponentDetails(selectedShelterComponent);
-      alert(`Se ha registrado la inspección de "${SHELTER_DETAILS[selectedShelterComponent].title}" con éxito.`);
+      showToast('Inspección registrada: ' + SHELTER_DETAILS[selectedShelterComponent].title + '.', 'success');
     });
   }
   
@@ -2721,6 +2921,7 @@ function recalculatePlugDiagnostic() {
 let efficiencyStyleChart = null;
 
 function updateEfficiencyStyleChart() {
+  if (typeof Chart === 'undefined') return;
   const canvas = document.getElementById('efficiencyStyleChart');
   if (!canvas) return;
   
@@ -2934,7 +3135,7 @@ async function downloadBackupFile() {
     downloadBlob(blob, backupFilename());
     markBackupDone();
   } catch (err) {
-    alert('No se pudo generar el respaldo: ' + err.message);
+    showToast('No se pudo generar el respaldo: ' + err.message, 'error');
   }
 }
 
@@ -2953,7 +3154,7 @@ async function shareBackupFile() {
     markBackupDone();
   } catch (err) {
     if (err && err.name === 'AbortError') return;
-    alert('No se pudo compartir el respaldo: ' + err.message);
+    showToast('No se pudo compartir el respaldo: ' + err.message, 'error');
   }
 }
 

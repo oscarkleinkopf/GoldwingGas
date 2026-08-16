@@ -1,5 +1,6 @@
-/* GoldwingGas — service worker (shell cache for offline / installable PWA) */
-const CACHE_VERSION = 'goldwinggas-v3';
+/* GoldwingGas — service worker (shell + CDN cache for offline PWA) */
+const CACHE_VERSION = 'goldwinggas-v4';
+
 const SHELL_ASSETS = [
   './',
   './index.html',
@@ -17,10 +18,37 @@ const SHELL_ASSETS = [
   './assets/icons/favicon.ico'
 ];
 
+const CDN_ASSETS = [
+  'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js',
+  'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2'
+];
+
+const CDN_HOSTS = [
+  'cdn.jsdelivr.net',
+  'cdnjs.cloudflare.com',
+  'fonts.googleapis.com',
+  'fonts.gstatic.com',
+  'tessdata.projectnaptha.com'
+];
+
+function cachePutSafe(request, response) {
+  if (!response || !response.ok) return;
+  caches.open(CACHE_VERSION).then((cache) => cache.put(request, response)).catch(() => {});
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(SHELL_ASSETS)).then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_VERSION);
+    await cache.addAll(SHELL_ASSETS);
+    await Promise.all(
+      CDN_ASSETS.map((url) => cache.add(url).catch((err) => {
+        console.warn('SW skip CDN', url, err);
+      }))
+    );
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -37,16 +65,12 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // App shell: cache-first
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.match(req).then((cached) => {
         if (cached) return cached;
         return fetch(req).then((res) => {
-          const copy = res.clone();
-          if (res.ok) {
-            caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
-          }
+          cachePutSafe(req, res.clone());
           return res;
         }).catch(() => caches.match('./index.html'));
       })
@@ -54,16 +78,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // CDNs (Chart.js, Tesseract, fonts, FA): network-first, cache fallback
+  if (!CDN_HOSTS.includes(url.hostname)) return;
+
   event.respondWith(
-    fetch(req)
-      .then((res) => {
-        const copy = res.clone();
-        if (res.ok) {
-          caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(req))
+    caches.match(req).then((cached) => {
+      const networked = fetch(req)
+        .then((res) => {
+          cachePutSafe(req, res.clone());
+          return res;
+        })
+        .catch(() => cached);
+      return cached || networked;
+    })
   );
 });

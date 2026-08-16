@@ -44,6 +44,7 @@ La app es una **PWA**: se instala directo desde el navegador.
 1. Abre [la demo](https://oscarkleinkopf.github.io/GoldwingGas/) en **Chrome** en el teléfono.
 2. Menú ⋮ → **Instalar app** / **Añadir a la pantalla de inicio** (o el botón en **Ajustes** si Chrome lo ofrece).
 3. Queda un icono **GoldwingGas** a pantalla completa. Los datos siguen en el teléfono (`localStorage` + IndexedDB). Descarga un respaldo JSON desde Ajustes.
+4. La primera vez con internet, la app cachea Chart.js y el motor OCR. Después el tablero funciona **sin red**; el OCR también, si ya se cacheó.
 
 No hace falta APK ni Play Store. Tras un deploy nuevo, al abrir la app instalada se actualiza sola vía el service worker.
 

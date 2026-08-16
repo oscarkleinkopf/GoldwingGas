@@ -7,9 +7,11 @@ Prioridades sugeridas para evolucionar GoldwingGas sin abandonar el modelo SPA l
 - [ ] **Tests manuales documentados** — checklist reproducible en `docs/DEVELOPMENT.md` o un `docs/QA.md` con capturas de casos OCR/CSV.
 - [x] **Favicon e iconos** — set en `assets/icons/` + arte de dedicatoria en la UI.
 - [x] **PWA mínima** — `manifest.webmanifest` + `sw.js` (cache del shell + CDNs al vuelo); instalable en Android sin Play Store.
+- [x] **Respaldo a prueba de fallos** — fotos en IndexedDB, JSON de backup con fotos, aviso a los 14 días, último respaldo visible en Ajustes.
+- [x] **PWA usable offline** — CDNs versionados y en caché; aviso si no hay red; OCR con worker/core/spa precacheados al primer uso online.
+- [x] **Validación de formularios** — fecha futura, litros/costo, odómetro menor al anterior (aviso); toasts en vez de `alert()`.
 - [x] **GPX Beeline → bencina** — importar km/fecha (sin mapa) y ligar a la carga del día.
 - [ ] **Meta Open Graph** — mejor compartir el link de Pages en redes.
-- [ ] **Validación de formularios** — odómetro no menor al anterior (aviso), litros/costo > 0, fechas futuras.
 - [ ] **i18n opcional** — extraer strings ES a un diccionario; EN como segundo idioma (la comunidad GL-1000 es global).
 
 ## Mediano plazo (valor de producto)
