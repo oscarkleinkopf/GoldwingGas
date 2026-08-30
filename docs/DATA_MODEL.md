@@ -20,8 +20,9 @@ Fotos de boletas/notas: IndexedDB **`goldwing_gas_photos`**, store `photos` (cla
     modelYear: string,   // '1975' … '1979'
     initialOdo: number,  // km de referencia / baseline
     currency: string,    // símbolo, p. ej. '$'
-    lastBackupAt: string // ISO datetime del último JSON descargado/compartido, o ''
-    lang: string         // 'es' | 'en' — idioma de la interfaz
+    lastBackupAt: string, // ISO datetime del último JSON descargado/compartido, o ''
+    lang: string,         // 'es' | 'en' — idioma de la interfaz
+    customMaintTypes: { name: string, interval: number }[]
   }
 }
 ```
@@ -93,6 +94,7 @@ En `loadData()`:
 - Si falta `shelterChecks`, se inicializa.
 - Si falta `settings.lastBackupAt`, queda `''`.
 - Si falta `rides`, se inicializa `[]`.
+- Si falta `settings.customMaintTypes`, queda `[]`.
 - Cada log sin `id` recibe un UUID.
 - Si `log.image` es un data URL, se mueve a IndexedDB (`photoId = id`) y se borra del JSON de `localStorage`.
 

@@ -13,7 +13,8 @@ let state = {
     initialOdo: 45000,
     currency: '$',
     lastBackupAt: '',
-    lang: 'es'
+    lang: 'es',
+    customMaintTypes: []
   }
 };
 
@@ -70,9 +71,13 @@ async function bootApp() {
   initServiceWorker();
   initPwaInstall();
   initBackupUi();
+  initTableFilters();
+  initCustomMaintTypes();
   
   if (typeof applyI18n === 'function') applyI18n();
   updateUI();
+  consumeSharedGpxInbox();
+  initFileLaunchHandler();
 }
 
 function createLogId() {
@@ -226,13 +231,16 @@ async function attachPhotoToLog(log, imageData) {
 
 function ensureSettingsDefaults() {
   if (!state.settings) {
-    state.settings = { modelYear: '1978', initialOdo: 45000, currency: '$', lastBackupAt: '', lang: 'es' };
+    state.settings = { modelYear: '1978', initialOdo: 45000, currency: '$', lastBackupAt: '', lang: 'es', customMaintTypes: [] };
   }
   if (state.settings.lastBackupAt === undefined) {
     state.settings.lastBackupAt = '';
   }
   if (!state.settings.lang) {
     state.settings.lang = 'es';
+  }
+  if (!Array.isArray(state.settings.customMaintTypes)) {
+    state.settings.customMaintTypes = [];
   }
   if (!state.shelterChecks) {
     state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
@@ -241,6 +249,161 @@ function ensureSettingsDefaults() {
     state.rides = [];
   }
 }
+
+const EXTRA_MAINT_TYPES = ['Frenos / Líquido', 'Neumáticos', 'Batería / Eléctrico', 'Otro'];
+
+function getCustomMaintTypes() {
+  return Array.isArray(state.settings && state.settings.customMaintTypes) ? state.settings.customMaintTypes : [];
+}
+
+function getAllMaintSchedules() {
+  const all = { ...MAINTENANCE_SCHEDULES };
+  getCustomMaintTypes().forEach((item) => {
+    if (!item || !item.name) return;
+    const interval = parseInt(item.interval, 10) || 0;
+    if (interval > 0) {
+      all[item.name] = { interval, label: item.name, desc: 'Servicio personalizado' };
+    }
+  });
+  return all;
+}
+
+function getMaintTypeNames() {
+  const names = [...Object.keys(MAINTENANCE_SCHEDULES), ...EXTRA_MAINT_TYPES];
+  getCustomMaintTypes().forEach((item) => {
+    if (item && item.name && !names.includes(item.name)) names.push(item.name);
+  });
+  return names;
+}
+
+function populateMaintTypeSelect(selected) {
+  const sel = document.getElementById('maint-type');
+  if (!sel) return;
+  const current = selected || sel.value || 'Cambio de Aceite y Filtro';
+  sel.innerHTML = getMaintTypeNames().map((name) => {
+    const pick = name === current ? ' selected' : '';
+    return `<option value="${escapeHtml(name)}"${pick}>${escapeHtml(name)}</option>`;
+  }).join('');
+}
+
+function populateMaintFilterTypes() {
+  const sel = document.getElementById('maint-filter-type');
+  if (!sel) return;
+  const keep = sel.value;
+  const used = [...new Set((state.maintLogs || []).map((l) => l.type).filter(Boolean))];
+  const names = [...new Set([...getMaintTypeNames(), ...used])];
+  sel.innerHTML = `<option value="">Todos los servicios</option>` +
+    names.map((n) => `<option value="${escapeHtml(n)}"${n === keep ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+}
+
+function getFuelFilterState() {
+  return {
+    q: (document.getElementById('fuel-filter-q') || {}).value || '',
+    from: (document.getElementById('fuel-filter-from') || {}).value || '',
+    to: (document.getElementById('fuel-filter-to') || {}).value || '',
+    type: (document.getElementById('fuel-filter-type') || {}).value || ''
+  };
+}
+
+function getMaintFilterState() {
+  return {
+    q: (document.getElementById('maint-filter-q') || {}).value || '',
+    from: (document.getElementById('maint-filter-from') || {}).value || '',
+    to: (document.getElementById('maint-filter-to') || {}).value || '',
+    type: (document.getElementById('maint-filter-type') || {}).value || ''
+  };
+}
+
+function logMatchesFilter(log, f) {
+  if (f.from && log.date < f.from) return false;
+  if (f.to && log.date > f.to) return false;
+  if (f.type && log.type !== f.type) return false;
+  if (f.q) {
+    const hay = `${log.station || ''} ${log.notes || ''} ${log.type || ''}`.toLowerCase();
+    if (!hay.includes(f.q.trim().toLowerCase())) return false;
+  }
+  return true;
+}
+
+function initTableFilters() {
+  ['fuel-filter-q', 'fuel-filter-from', 'fuel-filter-to', 'fuel-filter-type'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => renderFuelLogsTable());
+    if (el && el.tagName === 'SELECT') el.addEventListener('change', () => renderFuelLogsTable());
+  });
+  const clearFuel = document.getElementById('btn-fuel-filter-clear');
+  if (clearFuel) {
+    clearFuel.addEventListener('click', () => {
+      ['fuel-filter-q', 'fuel-filter-from', 'fuel-filter-to', 'fuel-filter-type'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      renderFuelLogsTable();
+    });
+  }
+  ['maint-filter-q', 'maint-filter-from', 'maint-filter-to', 'maint-filter-type'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => renderMaintLogsTable());
+    if (el && el.tagName === 'SELECT') el.addEventListener('change', () => renderMaintLogsTable());
+  });
+  const clearMaint = document.getElementById('btn-maint-filter-clear');
+  if (clearMaint) {
+    clearMaint.addEventListener('click', () => {
+      ['maint-filter-q', 'maint-filter-from', 'maint-filter-to', 'maint-filter-type'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      renderMaintLogsTable();
+    });
+  }
+}
+
+function renderCustomMaintList() {
+  const box = document.getElementById('custom-maint-list');
+  if (!box) return;
+  const items = getCustomMaintTypes();
+  if (!items.length) {
+    box.innerHTML = '<p class="text-muted" style="font-size: 0.8rem;">Todavía no hay tipos extra. El schedule GL-1000 sigue fijo.</p>';
+    return;
+  }
+  box.innerHTML = items.map((item, i) => `
+    <div class="custom-maint-row">
+      <span><strong>${escapeHtml(item.name)}</strong> · cada ${(parseInt(item.interval, 10) || 0).toLocaleString()} km</span>
+      <button type="button" class="btn-icon btn-icon-danger" onclick="deleteCustomMaintType(${i})" title="Quitar"><i class="fa-solid fa-trash-can"></i></button>
+    </div>`).join('');
+}
+
+function initCustomMaintTypes() {
+  const form = document.getElementById('form-custom-maint');
+  if (!form) return;
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = (document.getElementById('custom-maint-name').value || '').trim();
+    const interval = parseInt(document.getElementById('custom-maint-interval').value, 10);
+    if (!name || !interval || interval < 100) {
+      notifyUser('Indica un nombre y un intervalo de al menos 100 km.', 'error');
+      return;
+    }
+    const list = getCustomMaintTypes();
+    if (list.some((x) => x.name.toLowerCase() === name.toLowerCase()) || MAINTENANCE_SCHEDULES[name]) {
+      notifyUser('Ese tipo ya existe.', 'error');
+      return;
+    }
+    list.push({ name, interval });
+    state.settings.customMaintTypes = list;
+    saveData();
+    form.reset();
+    updateUI();
+  });
+}
+
+window.deleteCustomMaintType = function (index) {
+  const list = getCustomMaintTypes();
+  list.splice(index, 1);
+  state.settings.customMaintTypes = list;
+  saveData();
+  updateUI();
+};
 
 function ensureLogIds(logs) {
   logs.forEach((log) => {
@@ -314,7 +477,8 @@ function seedState() {
     initialOdo: 45000,
     currency: '$',
     lastBackupAt: '',
-    lang: 'es'
+    lang: 'es',
+    customMaintTypes: []
   };
   saveData();
 }
@@ -624,27 +788,26 @@ function populateFuelRideSelect(currentFuelId, selectedRideId) {
 }
 
 function renderRidesList() {
-  const list = document.getElementById('rides-list');
-  if (!list) return;
+  const lists = document.querySelectorAll('.rides-list');
+  if (!lists.length) return;
   const rides = [...(state.rides || [])].sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  if (!rides.length) {
-    list.innerHTML = '<p class="text-muted" style="font-size: 0.8rem; margin: 8px 0 0;">Todavía no hay viajes GPS. Exporta un GPX <em>ridden</em> desde Beeline.</p>';
-    return;
-  }
-  list.innerHTML = rides.map((ride) => {
-    const fuel = state.fuelLogs.find((l) => l.id === ride.fuelLogId);
-    const link = fuel
-      ? `ligado a carga del ${new Date(fuel.date).toLocaleDateString('es-ES', { timeZone: 'UTC' })} (${fuel.odometer.toLocaleString()} km)`
-      : 'sin carga asociada';
-    const dur = ride.durationMin ? ` · ${ride.durationMin} min` : '';
-    return `<div class="ride-row">
+  const html = !rides.length
+    ? '<p class="text-muted" style="font-size: 0.8rem; margin: 8px 0 0;">Todavía no hay viajes GPS. Exporta un GPX <em>ridden</em> desde Beeline.</p>'
+    : rides.map((ride) => {
+      const fuel = state.fuelLogs.find((l) => l.id === ride.fuelLogId);
+      const link = fuel
+        ? `ligado a carga del ${new Date(fuel.date).toLocaleDateString('es-ES', { timeZone: 'UTC' })} (${fuel.odometer.toLocaleString()} km)`
+        : 'sin carga asociada';
+      const dur = ride.durationMin ? ` · ${ride.durationMin} min` : '';
+      return `<div class="ride-row">
       <div>
         <strong>${escapeHtml(ride.name)}</strong>
         <span class="text-muted">${ride.date || 's/fecha'} · ${ride.distanceKm.toFixed(1)} km${dur}<br>${escapeHtml(link)}</span>
       </div>
       <button type="button" class="btn-icon btn-icon-danger" onclick="deleteRide('${ride.id}')" title="Quitar viaje"><i class="fa-solid fa-trash-can"></i></button>
     </div>`;
-  }).join('');
+    }).join('');
+  lists.forEach((list) => { list.innerHTML = html; });
 }
 
 window.deleteRide = function(rideId) {
@@ -654,20 +817,25 @@ window.deleteRide = function(rideId) {
   updateUI();
 };
 
-async function importGpxFiles(fileList) {
-  const files = Array.from(fileList || []).filter((f) => /\.gpx$/i.test(f.name) || f.type.includes('gpx'));
-  if (!files.length) {
-    notifyUser('Selecciona un archivo .gpx exportado desde Beeline.', 'error');
-    return;
+async function fileLooksLikeGpx(file) {
+  if (!file) return false;
+  if (/\.gpx$/i.test(file.name || '') || /gpx/i.test(file.type || '')) return true;
+  try {
+    const head = await file.slice(0, 900).text();
+    return /<gpx[\s>]/i.test(head) || /topografix\.com\/GPX/i.test(head);
+  } catch (err) {
+    return false;
   }
+}
+
+async function importGpxTexts(items) {
   let imported = 0;
   let linked = 0;
   let duplicates = 0;
   let errors = 0;
-  for (const file of files) {
+  for (const item of items) {
     try {
-      const text = await readFileAsText(file);
-      const parsed = parseGpxText(text, file.name);
+      const parsed = parseGpxText(item.text, item.name || 'viaje.gpx');
       const result = importParsedRide(parsed, 'beeline');
       if (result.status === 'duplicate') duplicates++;
       else {
@@ -688,6 +856,67 @@ async function importGpxFiles(fileList) {
       (errors ? `, ${errors} con error` : '') + '.',
     imported ? 'success' : 'error'
   );
+}
+
+async function importGpxFiles(fileList) {
+  const raw = Array.from(fileList || []);
+  const files = [];
+  for (const f of raw) {
+    if (await fileLooksLikeGpx(f)) files.push(f);
+  }
+  if (!files.length) {
+    notifyUser('Selecciona un archivo .gpx exportado desde Beeline (ruta recorrida / ridden).', 'error');
+    return;
+  }
+  const items = [];
+  for (const file of files) {
+    items.push({ name: file.name, text: await readFileAsText(file) });
+  }
+  await importGpxTexts(items);
+}
+
+async function consumeSharedGpxInbox() {
+  if (!('caches' in window)) return;
+  try {
+    const inbox = await caches.open('goldwinggas-share-inbox');
+    const keys = await inbox.keys();
+    if (!keys.length) return;
+    const items = [];
+    for (const req of keys) {
+      const res = await inbox.match(req);
+      if (!res) continue;
+      const text = await res.text();
+      const rawName = res.headers.get('X-Filename') || 'beeline.gpx';
+      const name = decodeURIComponent(rawName);
+      items.push({ name, text });
+      await inbox.delete(req);
+    }
+    if (items.length) {
+      await importGpxTexts(items);
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('share') === 'beeline') {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  } catch (err) {
+    console.warn('No se pudieron leer GPX compartidos', err);
+  }
+}
+
+function initFileLaunchHandler() {
+  if (!('launchQueue' in window)) return;
+  window.launchQueue.setConsumer(async (params) => {
+    if (!params.files || !params.files.length) return;
+    const files = [];
+    for (const handle of params.files) {
+      try {
+        files.push(await handle.getFile());
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+    if (files.length) importGpxFiles(files);
+  });
 }
 
 // Navigation Tabs
@@ -747,12 +976,17 @@ function updateUI() {
   // Update Gauges needles
   updateGauges(stats.avgEfficiency, estimatedRange);
   
+  populateMaintTypeSelect();
+  populateMaintFilterTypes();
+  renderCustomMaintList();
+  
   // Render logs lists tables
   renderFuelLogsTable();
   renderMaintLogsTable();
   
   // Update maintenance lamps & schedules list
   updateMaintenanceStatus(stats.currentOdo);
+  renderExtraCharts();
   
   // Update Shelter UI if initialized
   if (typeof selectedShelterComponent !== 'undefined' && document.getElementById('shelter-status-badge')) {
@@ -903,8 +1137,9 @@ function updateMaintenanceStatus(currentOdo) {
   listContainer.innerHTML = '';
   
   // For each type in schedules, find the last completed log
-  Object.keys(MAINTENANCE_SCHEDULES).forEach(type => {
-    const sched = MAINTENANCE_SCHEDULES[type];
+  const allSchedules = getAllMaintSchedules();
+  Object.keys(allSchedules).forEach(type => {
+    const sched = allSchedules[type];
     
     // Find last maint log of this type
     const matches = state.maintLogs.filter(l => l.type === type);
@@ -983,13 +1218,28 @@ function renderFuelLogsTable() {
   
   if (state.fuelLogs.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" class="text-center">${typeof t === 'function' ? t('table.fuel.empty') : 'No hay registros de bencina cargados.'}</td></tr>`;
+    const countEl = document.getElementById('fuel-filter-count');
+    if (countEl) countEl.textContent = '';
     return;
   }
   
   const dateLocale = typeof getDateLocale === 'function' ? getDateLocale() : 'es-ES';
+  const filters = getFuelFilterState();
   
   // Sort reverse chronological
-  const displayLogs = [...state.fuelLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const displayLogs = [...state.fuelLogs]
+    .filter((log) => logMatchesFilter(log, filters))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const countEl = document.getElementById('fuel-filter-count');
+  if (countEl) {
+    countEl.textContent = displayLogs.length === state.fuelLogs.length
+      ? `${displayLogs.length} carga(s)`
+      : `${displayLogs.length} de ${state.fuelLogs.length} carga(s)`;
+  }
+  if (!displayLogs.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center">Ninguna carga coincide con el filtro.</td></tr>`;
+    return;
+  }
   
   displayLogs.forEach(log => {
     const originalIndex = state.fuelLogs.indexOf(log);
@@ -1029,14 +1279,29 @@ function renderMaintLogsTable() {
   tbody.innerHTML = '';
   
   if (state.maintLogs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center">${typeof t === 'function' ? t('table.maint.empty') : 'No hay mantenimientos registrados.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center">${typeof t === 'function' ? t('table.maint.empty') : 'No hay mantenimientos registrados.'}</td></tr>`;
+    const countEl = document.getElementById('maint-filter-count');
+    if (countEl) countEl.textContent = '';
     return;
   }
   
   const dateLocale = typeof getDateLocale === 'function' ? getDateLocale() : 'es-ES';
+  const filters = getMaintFilterState();
   
   // Sort reverse chronological
-  const displayMaint = [...state.maintLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const displayMaint = [...state.maintLogs]
+    .filter((log) => logMatchesFilter(log, filters))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const countEl = document.getElementById('maint-filter-count');
+  if (countEl) {
+    countEl.textContent = displayMaint.length === state.maintLogs.length
+      ? `${displayMaint.length} servicio(s)`
+      : `${displayMaint.length} de ${state.maintLogs.length} servicio(s)`;
+  }
+  if (!displayMaint.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center">Ningún servicio coincide con el filtro.</td></tr>`;
+    return;
+  }
   
   displayMaint.forEach(log => {
     const originalIndex = state.maintLogs.indexOf(log);
@@ -1136,6 +1401,123 @@ function renderFuelChart() {
       }
     }
   });
+}
+
+let costChart = null;
+let histChart = null;
+let serviceGapChart = null;
+
+function chartDarkOptions(yTitle) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        grid: { color: '#23272a' },
+        ticks: { color: '#8899a6', font: { family: 'Montserrat' } },
+        title: yTitle ? { display: true, text: yTitle, color: '#8899a6' } : undefined
+      },
+      x: {
+        grid: { color: 'transparent' },
+        ticks: { color: '#8899a6', font: { family: 'Montserrat', size: 10 } }
+      }
+    },
+    plugins: { legend: { display: false } }
+  };
+}
+
+function renderExtraCharts() {
+  if (typeof Chart === 'undefined') return;
+  const sortedFuel = [...state.fuelLogs].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const loc = typeof getDateLocale === 'function' ? getDateLocale() : 'es-ES';
+  const labels = sortedFuel.map((l) => new Date(l.date).toLocaleDateString(loc, { timeZone: 'UTC', month: 'short', day: 'numeric' }));
+  let running = 0;
+  const cumulative = sortedFuel.map((l) => {
+    running += parseInt(l.cost, 10) || 0;
+    return running;
+  });
+  const costCtx = document.getElementById('costChart');
+  if (costCtx) {
+    if (costChart) costChart.destroy();
+    if (sortedFuel.length) {
+      costChart = new Chart(costCtx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data: cumulative,
+            borderColor: '#17bf63',
+            backgroundColor: 'rgba(23, 191, 99, 0.12)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3
+          }]
+        },
+        options: chartDarkOptions((state.settings.currency || '$') + ' acumulado')
+      });
+    }
+  }
+
+  const l100 = state.fuelLogs
+    .filter((l) => l.efficiency && l.efficiency > 0)
+    .map((l) => 100 / l.efficiency);
+  const bins = [
+    { label: '≤6', min: 0, max: 6 },
+    { label: '6–8', min: 6, max: 8 },
+    { label: '8–10', min: 8, max: 10 },
+    { label: '10–12', min: 10, max: 12 },
+    { label: '>12', min: 12, max: 999 }
+  ];
+  const histCounts = bins.map((b) => l100.filter((v) => v > b.min && v <= b.max).length);
+  const histCtx = document.getElementById('histChart');
+  if (histCtx) {
+    if (histChart) histChart.destroy();
+    histChart = new Chart(histCtx, {
+      type: 'bar',
+      data: {
+        labels: bins.map((b) => b.label),
+        datasets: [{
+          data: histCounts,
+          backgroundColor: 'rgba(255, 179, 0, 0.55)',
+          borderColor: '#ffb300',
+          borderWidth: 1
+        }]
+      },
+      options: chartDarkOptions('Cargas')
+    });
+  }
+
+  const gaps = [];
+  const byType = {};
+  [...state.maintLogs].sort((a, b) => a.odometer - b.odometer).forEach((log) => {
+    if (!log.odometer) return;
+    const prev = byType[log.type];
+    if (prev && log.odometer > prev) {
+      gaps.push({
+        label: `${log.type.split(' ')[0]} ${new Date(log.date).toLocaleDateString(loc, { timeZone: 'UTC', month: 'short' })}`,
+        km: log.odometer - prev
+      });
+    }
+    byType[log.type] = log.odometer;
+  });
+  const recent = gaps.slice(-10);
+  const gapCtx = document.getElementById('serviceGapChart');
+  if (gapCtx) {
+    if (serviceGapChart) serviceGapChart.destroy();
+    serviceGapChart = new Chart(gapCtx, {
+      type: 'bar',
+      data: {
+        labels: recent.length ? recent.map((g) => g.label) : ['—'],
+        datasets: [{
+          data: recent.length ? recent.map((g) => g.km) : [0],
+          backgroundColor: 'rgba(29, 161, 242, 0.5)',
+          borderColor: '#1da1f2',
+          borderWidth: 1
+        }]
+      },
+      options: chartDarkOptions('km entre servicios')
+    });
+  }
 }
 
 // Modal handling & forms submission listeners
@@ -1258,6 +1640,7 @@ function initFormListeners() {
         document.getElementById('ocr-maint-file-input').value = '';
         
         document.getElementById('maint-date').value = new Date().toISOString().split('T')[0];
+        populateMaintTypeSelect('Cambio de Aceite y Filtro');
         maintModal.classList.add('open');
       });
     }
@@ -1349,6 +1732,12 @@ function initFormListeners() {
   document.getElementById('btn-export-data').addEventListener('click', () => {
     downloadBackupFile();
   });
+  const reportBtn = document.getElementById('btn-export-report');
+  if (reportBtn) {
+    reportBtn.addEventListener('click', () => {
+      if (typeof exportHtmlReport === 'function') exportHtmlReport();
+    });
+  }
   
   document.getElementById('input-import-data').addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -1398,15 +1787,18 @@ function initFormListeners() {
     }
   });
 
-  const gpxInput = document.getElementById('input-import-gpx');
-  if (gpxInput) {
-    gpxInput.addEventListener('change', (e) => {
+  const bindGpxInput = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', (e) => {
       if (e.target.files && e.target.files.length) {
         importGpxFiles(e.target.files);
         e.target.value = '';
       }
     });
-  }
+  };
+  bindGpxInput('input-import-gpx');
+  bindGpxInput('input-import-gpx-fuel');
   
   // Clear/Reset Data
   document.getElementById('btn-reset-data').addEventListener('click', async () => {
@@ -1476,7 +1868,7 @@ window.editMaintLog = async function(index) {
   const log = state.maintLogs[index];
   
   document.getElementById('maint-log-index').value = index;
-  document.getElementById('maint-type').value = log.type;
+  populateMaintTypeSelect(log.type);
   document.getElementById('maint-date').value = log.date;
   document.getElementById('maint-odo').value = log.odometer;
   document.getElementById('maint-cost').value = log.cost || '';
@@ -1604,11 +1996,14 @@ function initOcrEngine() {
 // Convert uploaded file to base64 & run Tesseract.js OCR engine
 function handleOcrImage(file) {
   const reader = new FileReader();
-  reader.onload = function(e) {
-    const base64Data = e.target.result;
+  reader.onload = async function(e) {
+    const originalData = e.target.result;
+    const base64Data = typeof preprocessReceiptImage === 'function'
+      ? await preprocessReceiptImage(originalData)
+      : originalData;
     
-    // Save image to hidden form input
-    document.getElementById('fuel-image-data').value = base64Data;
+    // Save original (color) image to hidden form input
+    document.getElementById('fuel-image-data').value = originalData;
     
     // Render UI loading/scanning animations
     const previewContainer = document.getElementById('ocr-preview-container');
@@ -1618,7 +2013,7 @@ function handleOcrImage(file) {
     const alertResult = document.getElementById('ocr-results-alert');
     
     previewContainer.style.display = 'block';
-    previewImg.src = base64Data;
+    previewImg.src = originalData;
     laser.style.display = 'block';
     statusOverlay.style.display = 'flex';
     statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Cargando Tesseract OCR...`;
@@ -1688,28 +2083,14 @@ function parseOcrResults(text) {
   }
   
   // 2. EXTRACT LITERS
-  // Looking for floating numbers near word indicators L, LTS, LITROS, LTR
-  // e.g. "15,20 L", "12.5 LTS", "14.80L"
-  const litersRegex = /(\d+[\.,]\d{1,3})\s*(?:L|LTS|LIT|LITROS|LTR|VOLUMEN)\b/g;
-  let literMatches = [...normalizedText.matchAll(litersRegex)];
-  
-  if (literMatches.length > 0) {
-    // Convert comma to dot and parse
-    const possibleLiters = parseFloat(literMatches[0][1].replace(',', '.'));
-    // Make sure volume is reasonable for a motorcycle tank fill-up (typically 5 to 22 liters)
-    if (possibleLiters >= 1 && possibleLiters <= 25) {
-      detectedLiters = possibleLiters;
-    }
+  if (typeof extractOcrLiters === 'function') {
+    detectedLiters = extractOcrLiters(normalizedText);
   } else {
-    // Fallback: search for any floating point numbers between 3.00 and 22.00
-    const floatRegex = /\b(\d+[\.,]\d{1,2})\b/g;
-    const floatMatches = normalizedText.match(floatRegex) || [];
-    for (const matchStr of floatMatches) {
-      const val = parseFloat(matchStr.replace(',', '.'));
-      if (val >= 4.0 && val <= 20.0) {
-        detectedLiters = val;
-        break;
-      }
+    const litersRegex = /(\d+[\.,]\d{1,3})\s*(?:L|LTS|LIT|LITROS|LTR|VOLUMEN)\b/g;
+    let literMatches = [...normalizedText.matchAll(litersRegex)];
+    if (literMatches.length > 0) {
+      const possibleLiters = parseFloat(literMatches[0][1].replace(',', '.'));
+      if (possibleLiters >= 1 && possibleLiters <= 25) detectedLiters = possibleLiters;
     }
   }
   
@@ -1742,22 +2123,13 @@ function parseOcrResults(text) {
   detectedOdo = bestOdoCandidate;
   
   // 4. EXTRACT PRICE
-  // Look for currency symbols or words like TOTAL, PAGO, COSTO, NETO
-  const priceRegex = /(?:TOTAL|PAGO|NETO|\$|PESOS)\s*[:\.]?\s*(\d{3,6})\b/;
-  const priceMatch = normalizedText.match(priceRegex);
-  if (priceMatch) {
-    detectedPrice = parseInt(priceMatch[1]);
-  } else {
-    // Find numbers between 1000 and 30000 that aren't the odometer
-    const intRegex = /\b(\d{4,5})\b/g;
-    const intMatches = [...normalizedText.matchAll(intRegex)];
-    for (const match of intMatches) {
-      const val = parseInt(match[1]);
-      if (val >= 2000 && val <= 30000 && val !== detectedOdo) {
-        detectedPrice = val;
-        break;
-      }
-    }
+  if (typeof extractOcrPrice === 'function') {
+    detectedPrice = extractOcrPrice(normalizedText);
+  }
+  if (!detectedPrice) {
+    const priceRegex = /(?:TOTAL|PAGO|NETO|\$|PESOS|MONTO|CLP)\s*[:\.]?\s*(\d{3,6})\b/;
+    const priceMatch = normalizedText.match(priceRegex);
+    if (priceMatch) detectedPrice = parseInt(priceMatch[1], 10);
   }
   
   // Populate Form Fields if values detected
@@ -1778,6 +2150,11 @@ function parseOcrResults(text) {
   if (detectedPrice) {
     document.getElementById('fuel-cost').value = detectedPrice;
     alertContent.push(`<strong>Costo Total:</strong> ${state.settings.currency}${detectedPrice.toLocaleString()}`);
+  }
+  const stationGuess = typeof detectFuelStation === 'function' ? detectFuelStation(normalizedText) : '';
+  if (stationGuess && document.getElementById('fuel-station')) {
+    document.getElementById('fuel-station').value = stationGuess;
+    alertContent.push(`<strong>Estación:</strong> ${stationGuess}`);
   }
   
   alertResult.style.display = 'flex';
@@ -2558,24 +2935,20 @@ function extractFuelOcrProperties(text) {
     odometer = parseInt(odoMatch[0][1]);
   }
   
-  let liters = 0;
-  const litersMatch = normalized.match(/(\d{1,2}[\.,]\d{1,2})\s*(?:L|LTS|LITROS|LTR|G|GLS)/);
-  if (litersMatch) {
-    liters = parseFloat(litersMatch[1].replace(',', '.'));
+  let liters = typeof extractOcrLiters === 'function' ? extractOcrLiters(normalized) : 0;
+  if (!liters) {
+    const litersMatch = normalized.match(/(\d{1,2}[\.,]\d{1,2})\s*(?:L|LTS|LITROS|LTR|G|GLS)/);
+    if (litersMatch) liters = parseFloat(litersMatch[1].replace(',', '.'));
   }
   
-  let cost = 0;
-  const priceMatch = normalized.match(/(?:TOTAL|PAGO|NETO|\$|PESOS|VALOR|COSTO)\s*[:\.]?\s*(\d{3,6})\b/);
-  if (priceMatch) {
-    cost = parseInt(priceMatch[1]);
+  let cost = typeof extractOcrPrice === 'function' ? extractOcrPrice(normalized) : 0;
+  if (!cost) {
+    const priceMatch = normalized.match(/(?:TOTAL|PAGO|NETO|\$|PESOS|VALOR|COSTO)\s*[:\.]?\s*(\d{3,6})\b/);
+    if (priceMatch) cost = parseInt(priceMatch[1], 10);
   }
   
-  // Classify station
-  let station = 'Gasolinera';
-  if (/COPEC/i.test(normalized)) station = 'Copec';
-  else if (/SHELL/i.test(normalized)) station = 'Shell';
-  else if (/PETROBRAS/i.test(normalized)) station = 'Petrobras';
-  else if (/TERPEL/i.test(normalized)) station = 'Terpel';
+  let station = typeof detectFuelStation === 'function' ? detectFuelStation(normalized) : '';
+  if (!station) station = 'Gasolinera';
   
   return { date, odometer, liters, cost, station };
 }
