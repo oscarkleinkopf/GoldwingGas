@@ -37,15 +37,19 @@ Datos **100 % locales**. Historial en `localStorage`; fotos de boletas en Indexe
 2. Si es la primera visita, verás datos de ejemplo (seed). En **Ajustes** puedes borrarlos e importar tu planilla.
 3. En móvil, los botones de foto abren la cámara (`capture="environment"`).
 
-### Instalar en Android (sin Google Play)
+### Instalar como app (PWA — sin tienda)
 
-La app es una **PWA**: se instala directo desde el navegador.
+GoldwingGas es una **Progressive Web App**: se instala desde el navegador y queda como icono a pantalla completa.
 
-1. Abre [la demo](https://oscarkleinkopf.github.io/GoldwingGas/) en **Chrome** en el teléfono.
-2. Menú ⋮ → **Instalar app** / **Añadir a la pantalla de inicio** (o el botón en **Ajustes** si Chrome lo ofrece).
-3. Queda un icono **GoldwingGas** a pantalla completa. Los datos siguen en el teléfono (`localStorage` + IndexedDB). Descarga un respaldo JSON desde Ajustes.
+| Plataforma | Cómo instalar |
+|------------|---------------|
+| **Android** | Chrome → menú ⋮ → **Instalar app**, o el botón en **Ajustes** / banner del tablero |
+| **iPhone / iPad** | Safari → **Compartir** → **Añadir a pantalla de inicio** |
+| **Escritorio** | Chrome / Edge → icono de instalación en la barra de direcciones |
 
-No hace falta APK ni Play Store. Tras un deploy nuevo, al abrir la app instalada se actualiza sola vía el service worker.
+Los datos siguen en el dispositivo (`localStorage` + IndexedDB). Descarga un respaldo JSON desde Ajustes.
+
+Tras un deploy nuevo, la app instalada avisa cuando hay actualización y se recarga vía service worker.
 
 > Para OCR y cámaras, preferible servir por HTTP(S) (GitHub Pages o un servidor local). Abrir el archivo como `file://` puede limitar algunas APIs del navegador.
 

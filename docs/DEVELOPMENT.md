@@ -109,13 +109,13 @@ Validación manual mínima antes de merge:
 6. (Si tocaste OCR) una foto de prueba; comprobar que `localStorage` no contiene data URLs enormes.
 7. Banner de respaldo: sin `lastBackupAt` aparece; tras descargar JSON, desaparece.
 
-Cuando se añadan tests, documentar el comando aquí (ver ROADMAP).
+Cuando se añadan tests, documentar el comando aquí (ver ROADMAP). Checklist manual: [QA.md](QA.md).
 
 ## PWA / service worker
 
-Tras cambiar `index.html`, `app.js`, `style.css` o assets del shell, sube `CACHE_VERSION` en `sw.js` (p. ej. `goldwinggas-v2`) para forzar recacheo en clientes ya instalados.
+Tras cambiar `index.html`, `app.js`, `style.css` o assets del shell, sube `CACHE_VERSION` en `sw.js` (p. ej. `goldwinggas-v4`) para forzar recacheo en clientes ya instalados.
 
-Probar instalación: Chrome → DevTools → Application → Manifest / Service Workers. En Android real, abre la URL de Pages por HTTPS.
+Probar instalación: Chrome → DevTools → Application → Manifest / Service Workers. En Android real, abre la URL de Pages por HTTPS. En iOS, Safari → Compartir → Añadir a pantalla de inicio. El tablero muestra un banner de instalación (posponible por sesión) cuando la app no está instalada.
 
 ## Deploy
 

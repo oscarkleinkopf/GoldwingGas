@@ -12,7 +12,8 @@ let state = {
     modelYear: '1978',
     initialOdo: 45000,
     currency: '$',
-    lastBackupAt: ''
+    lastBackupAt: '',
+    lang: 'es'
   }
 };
 
@@ -66,9 +67,11 @@ async function bootApp() {
   initFuelAdditiveCalc();
   initAltitudeCalc();
   initSparkPlugDiag();
+  initServiceWorker();
   initPwaInstall();
   initBackupUi();
   
+  if (typeof applyI18n === 'function') applyI18n();
   updateUI();
 }
 
@@ -223,10 +226,13 @@ async function attachPhotoToLog(log, imageData) {
 
 function ensureSettingsDefaults() {
   if (!state.settings) {
-    state.settings = { modelYear: '1978', initialOdo: 45000, currency: '$', lastBackupAt: '' };
+    state.settings = { modelYear: '1978', initialOdo: 45000, currency: '$', lastBackupAt: '', lang: 'es' };
   }
   if (state.settings.lastBackupAt === undefined) {
     state.settings.lastBackupAt = '';
+  }
+  if (!state.settings.lang) {
+    state.settings.lang = 'es';
   }
   if (!state.shelterChecks) {
     state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
@@ -307,7 +313,8 @@ function seedState() {
     modelYear: '1978',
     initialOdo: 45000,
     currency: '$',
-    lastBackupAt: ''
+    lastBackupAt: '',
+    lang: 'es'
   };
   saveData();
 }
@@ -339,6 +346,91 @@ function escapeHtml(str) {
     '"': '&quot;',
     "'": '&#39;'
   }[ch]));
+}
+
+function todayIsoDate() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function getMaxLoggedOdometer(excludeLogId) {
+  const initialOdo = parseInt(state.settings.initialOdo, 10) || 0;
+  let maxOdo = initialOdo;
+  const allLogs = [...(state.fuelLogs || []), ...(state.maintLogs || [])];
+  allLogs.forEach((log) => {
+    if (excludeLogId && log.id === excludeLogId) return;
+    const odo = parseInt(log.odometer, 10);
+    if (odo > 0 && odo > maxOdo) maxOdo = odo;
+  });
+  return maxOdo;
+}
+
+function validateFuelLogForm({ date, odometer, liters, cost, logId }) {
+  const errors = [];
+  const warnings = [];
+  const initialOdo = parseInt(state.settings.initialOdo, 10) || 0;
+
+  if (!date) errors.push(typeof t === 'function' ? t('validation.dateRequired') : 'La fecha es obligatoria.');
+  if (date && date > todayIsoDate()) {
+    warnings.push(typeof t === 'function' ? t('validation.futureDate') : 'La fecha es posterior a hoy.');
+  }
+  if (isNaN(odometer)) {
+    errors.push(typeof t === 'function' ? t('validation.odometerRequired') : 'El odómetro es obligatorio.');
+  } else if (odometer < initialOdo) {
+    const msg = typeof t === 'function' ? t('validation.odometerBelowInitial', { km: initialOdo.toLocaleString() }) : `El kilometraje no puede ser inferior al odómetro inicial (${initialOdo.toLocaleString()} km).`;
+    errors.push(msg);
+  } else if (odometer > 0) {
+    const maxOdo = getMaxLoggedOdometer(logId);
+    if (odometer < maxOdo) {
+      const msg = typeof t === 'function' ? t('validation.odometerBelowPrevious', { km: maxOdo.toLocaleString() }) : `El odómetro (${maxOdo.toLocaleString()} km) es menor al último registro.`;
+      warnings.push(msg);
+    }
+  }
+  if (isNaN(liters) || liters <= 0) {
+    errors.push(typeof t === 'function' ? t('validation.litersPositive') : 'Los litros deben ser mayores que 0.');
+  }
+  if (isNaN(cost) || cost <= 0) {
+    errors.push(typeof t === 'function' ? t('validation.costPositive') : 'El costo debe ser mayor que 0.');
+  }
+  return { errors, warnings };
+}
+
+function validateMaintLogForm({ date, odometer, cost, logId }) {
+  const errors = [];
+  const warnings = [];
+  const initialOdo = parseInt(state.settings.initialOdo, 10) || 0;
+
+  if (!date) errors.push(typeof t === 'function' ? t('validation.dateRequired') : 'La fecha es obligatoria.');
+  if (date && date > todayIsoDate()) {
+    warnings.push(typeof t === 'function' ? t('validation.futureDate') : 'La fecha es posterior a hoy.');
+  }
+  if (isNaN(odometer)) {
+    errors.push(typeof t === 'function' ? t('validation.odometerRequired') : 'El odómetro es obligatorio.');
+  } else if (odometer < initialOdo) {
+    const msg = typeof t === 'function' ? t('validation.odometerBelowInitial', { km: initialOdo.toLocaleString() }) : `El kilometraje no puede ser inferior al odómetro inicial (${initialOdo.toLocaleString()} km).`;
+    errors.push(msg);
+  } else if (odometer > 0) {
+    const maxOdo = getMaxLoggedOdometer(logId);
+    if (odometer < maxOdo) {
+      const msg = typeof t === 'function' ? t('validation.odometerBelowPrevious', { km: maxOdo.toLocaleString() }) : `El odómetro (${maxOdo.toLocaleString()} km) es menor al último registro.`;
+      warnings.push(msg);
+    }
+  }
+  if (cost !== null && cost !== '' && (isNaN(cost) || cost < 0)) {
+    errors.push(typeof t === 'function' ? t('validation.costInvalid') : 'El costo no puede ser negativo.');
+  }
+  return { errors, warnings };
+}
+
+function confirmIfWarnings(warnings) {
+  if (!warnings.length) return true;
+  const title = typeof t === 'function' ? t('validation.warningsTitle') : 'Revisa estos avisos:';
+  const footer = typeof t === 'function' ? t('validation.continueAnyway') : '¿Deseas guardar de todos modos?';
+  const body = warnings.map((w, i) => `${i + 1}. ${w}`).join('\n');
+  return confirm(`${title}\n\n${body}\n\n${footer}`);
+}
+
+function showValidationErrors(errors) {
+  alert(errors.join('\n'));
 }
 
 function haversineKm(a, b) {
@@ -635,6 +727,9 @@ function updateUI() {
   document.getElementById('settings-model-year').value = state.settings.modelYear;
   document.getElementById('settings-initial-odo').value = state.settings.initialOdo;
   document.getElementById('settings-currency').value = state.settings.currency;
+  const langEl = document.getElementById('settings-language');
+  if (langEl) langEl.value = state.settings.lang || 'es';
+  if (typeof applyI18n === 'function') applyI18n();
   
   // Calculate Stats
   const stats = calculateStats();
@@ -887,25 +982,27 @@ function renderFuelLogsTable() {
   tbody.innerHTML = '';
   
   if (state.fuelLogs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center">No hay registros de bencina cargados.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center">${typeof t === 'function' ? t('table.fuel.empty') : 'No hay registros de bencina cargados.'}</td></tr>`;
     return;
   }
+  
+  const dateLocale = typeof getDateLocale === 'function' ? getDateLocale() : 'es-ES';
   
   // Sort reverse chronological
   const displayLogs = [...state.fuelLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
   
   displayLogs.forEach(log => {
     const originalIndex = state.fuelLogs.indexOf(log);
-    const dateFormatted = new Date(log.date).toLocaleDateString('es-ES', { timeZone: 'UTC' });
+    const dateFormatted = new Date(log.date).toLocaleDateString(dateLocale, { timeZone: 'UTC' });
     const efficiencyDisplay = log.efficiency 
       ? `<strong>${log.efficiency.toFixed(2)}</strong> km/L<br><span class="text-muted">${(100/log.efficiency).toFixed(2)} L/100km</span>`
-      : '<span class="text-muted">N/A (Carga inicial)</span>';
+      : `<span class="text-muted">${typeof t === 'function' ? t('table.fuel.initialLoad') : 'N/A (Carga inicial)'}</span>`;
     const gpsNote = (log.gpsKm && log.gpsEfficiency)
       ? `<br><span class="gps-fuel-note" title="Kilómetros del GPX Beeline"><i class="fa-solid fa-route"></i> GPS ${log.gpsKm.toFixed(1)} km · ${log.gpsEfficiency.toFixed(2)} km/L</span>`
       : '';
       
     const hasPhoto = logHasPhoto(log)
-      ? `<button class="ticket-attachment-btn" onclick="viewPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> Ver boleta</button>`
+      ? `<button class="ticket-attachment-btn" onclick="viewPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> ${typeof t === 'function' ? t('table.fuel.viewReceipt') : 'Ver boleta'}</button>`
       : '<span class="text-muted">-</span>';
     
     const tr = document.createElement('tr');
@@ -918,8 +1015,8 @@ function renderFuelLogsTable() {
       <td>${hasPhoto}</td>
       <td><span class="tag-badge ${log.type.toLowerCase()}">${log.type}</span>${log.station ? '<br><small class="text-muted">' + log.station + '</small>' : ''}${log.notes ? '<p class="text-muted" style="font-size: 0.75rem; margin-top:2px;">' + log.notes + '</p>' : ''}</td>
       <td>
-        <button class="btn-icon" onclick="editFuelLog(${originalIndex})" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
-        <button class="btn-icon btn-icon-danger" onclick="deleteFuelLog(${originalIndex})" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
+        <button class="btn-icon" onclick="editFuelLog(${originalIndex})" title="${typeof t === 'function' ? t('common.edit') : 'Editar'}"><i class="fa-solid fa-pen-to-square"></i></button>
+        <button class="btn-icon btn-icon-danger" onclick="deleteFuelLog(${originalIndex})" title="${typeof t === 'function' ? t('common.delete') : 'Eliminar'}"><i class="fa-solid fa-trash-can"></i></button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -932,19 +1029,21 @@ function renderMaintLogsTable() {
   tbody.innerHTML = '';
   
   if (state.maintLogs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center">No hay mantenimientos registrados.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center">${typeof t === 'function' ? t('table.maint.empty') : 'No hay mantenimientos registrados.'}</td></tr>`;
     return;
   }
+  
+  const dateLocale = typeof getDateLocale === 'function' ? getDateLocale() : 'es-ES';
   
   // Sort reverse chronological
   const displayMaint = [...state.maintLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
   
   displayMaint.forEach(log => {
     const originalIndex = state.maintLogs.indexOf(log);
-    const dateFormatted = new Date(log.date).toLocaleDateString('es-ES', { timeZone: 'UTC' });
+    const dateFormatted = new Date(log.date).toLocaleDateString(dateLocale, { timeZone: 'UTC' });
     const costDisplay = log.cost ? `${state.settings.currency}${parseInt(log.cost).toLocaleString()}` : '<span class="text-muted">-</span>';
     const hasPhoto = logHasPhoto(log)
-      ? `<button class="ticket-attachment-btn" onclick="viewMaintPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> Ver nota</button>`
+      ? `<button class="ticket-attachment-btn" onclick="viewMaintPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> ${typeof t === 'function' ? t('table.maint.viewNote') : 'Ver nota'}</button>`
       : '<span class="text-muted">-</span>';
     
     const tr = document.createElement('tr');
@@ -956,8 +1055,8 @@ function renderMaintLogsTable() {
       <td><p style="margin: 0; max-width: 250px; font-size: 0.85rem;">${log.notes || '-'}</p></td>
       <td>${hasPhoto}</td>
       <td>
-        <button class="btn-icon" onclick="editMaintLog(${originalIndex})" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
-        <button class="btn-icon btn-icon-danger" onclick="deleteMaintLog(${originalIndex})" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
+        <button class="btn-icon" onclick="editMaintLog(${originalIndex})" title="${typeof t === 'function' ? t('common.edit') : 'Editar'}"><i class="fa-solid fa-pen-to-square"></i></button>
+        <button class="btn-icon btn-icon-danger" onclick="deleteMaintLog(${originalIndex})" title="${typeof t === 'function' ? t('common.delete') : 'Eliminar'}"><i class="fa-solid fa-trash-can"></i></button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -1092,15 +1191,20 @@ function initFormListeners() {
     const existingPhotoId = document.getElementById('fuel-photo-id').value;
     const rideId = document.getElementById('fuel-ride-id') ? document.getElementById('fuel-ride-id').value : '';
     
-    // Validation
-    const initialOdo = parseInt(state.settings.initialOdo) || 0;
-    
-    if (odometer < initialOdo) {
-      alert(`El kilometraje no puede ser inferior al odómetro inicial establecido (${initialOdo.toLocaleString()} km).`);
+    const previous = index === -1 ? null : state.fuelLogs[index];
+    const validation = validateFuelLogForm({
+      date,
+      odometer,
+      liters,
+      cost,
+      logId: previous ? previous.id : null
+    });
+    if (validation.errors.length) {
+      showValidationErrors(validation.errors);
       return;
     }
+    if (!confirmIfWarnings(validation.warnings)) return;
     
-    const previous = index === -1 ? null : state.fuelLogs[index];
     const logData = {
       id: (previous && previous.id) || createLogId(),
       date,
@@ -1180,13 +1284,19 @@ function initFormListeners() {
     const imageData = document.getElementById('maint-image-data').value;
     const existingPhotoId = document.getElementById('maint-photo-id').value;
     
-    const initialOdo = parseInt(state.settings.initialOdo) || 0;
-    if (odometer < initialOdo) {
-      alert(`El kilometraje no puede ser inferior al odómetro inicial establecido (${initialOdo.toLocaleString()} km).`);
+    const previous = index === -1 ? null : state.maintLogs[index];
+    const validation = validateMaintLogForm({
+      date,
+      odometer,
+      cost,
+      logId: previous ? previous.id : null
+    });
+    if (validation.errors.length) {
+      showValidationErrors(validation.errors);
       return;
     }
+    if (!confirmIfWarnings(validation.warnings)) return;
     
-    const previous = index === -1 ? null : state.maintLogs[index];
     const maintData = {
       id: (previous && previous.id) || createLogId(),
       type,
@@ -1226,10 +1336,13 @@ function initFormListeners() {
     state.settings.modelYear = document.getElementById('settings-model-year').value;
     state.settings.initialOdo = parseInt(document.getElementById('settings-initial-odo').value) || 0;
     state.settings.currency = document.getElementById('settings-currency').value || '$';
+    const langEl = document.getElementById('settings-language');
+    if (langEl) state.settings.lang = langEl.value === 'en' ? 'en' : 'es';
     
     saveData();
+    if (typeof applyI18n === 'function') applyI18n();
     updateUI();
-    alert('Configuración de la moto guardada con éxito.');
+    alert(typeof t === 'function' ? t('settings.saved') : 'Configuración de la moto guardada con éxito.');
   });
   
   // Export/Import JSON data
@@ -2818,34 +2931,126 @@ function updateEfficiencyStyleChart() {
 }
 
 // ==========================================
-// PWA INSTALL (Android / Chrome — sin Play Store)
+// SERVICE WORKER + PWA INSTALL
 // ==========================================
+function isPwaStandalone() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  );
+}
+
+function isIosDevice() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+
+function initServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then((reg) => {
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showSwUpdateBanner();
+          }
+        });
+      });
+    }).catch((err) => {
+      console.warn('Service worker no registrado:', err);
+    });
+  });
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+}
+
+function showSwUpdateBanner() {
+  const banner = document.getElementById('sw-update-banner');
+  const reloadBtn = document.getElementById('btn-sw-reload');
+  if (!banner) return;
+  banner.hidden = false;
+  if (reloadBtn && !reloadBtn.dataset.bound) {
+    reloadBtn.dataset.bound = '1';
+    reloadBtn.addEventListener('click', () => {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+      } else {
+        window.location.reload();
+      }
+    });
+  }
+}
+
+function isAndroidDevice() {
+  return /android/i.test(navigator.userAgent);
+}
+
+function isXiaomiDevice() {
+  return /xiaomi|miui|redmi|hyperos|mi\s15|mi\s14/i.test(navigator.userAgent);
+}
+
 function initPwaInstall() {
   const installBtn = document.getElementById('btn-install-pwa');
+  const bannerBtn = document.getElementById('btn-install-banner');
+  const bannerLater = document.getElementById('btn-install-later');
+  const installBanner = document.getElementById('install-banner');
+  const bannerText = document.getElementById('install-banner-text');
   const statusEl = document.getElementById('pwa-install-status');
+  const iosHint = document.getElementById('pwa-install-ios-hint');
+  const androidHint = document.getElementById('pwa-install-android-hint');
+  const xiaomiNote = document.getElementById('pwa-xiaomi-note');
+  const desktopHint = document.getElementById('pwa-install-desktop-hint');
   if (!installBtn) return;
 
   let deferredPrompt = null;
-
-  const isStandalone =
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true;
+  const isStandalone = isPwaStandalone();
+  const isIos = isIosDevice();
+  const isAndroid = isAndroidDevice();
+  const snoozed = sessionStorage.getItem('goldwing_install_snooze') === '1';
 
   if (isStandalone && statusEl) {
     statusEl.textContent = 'GoldwingGas ya está instalada en este dispositivo.';
+  } else if (isIos && iosHint) {
+    iosHint.hidden = false;
+    if (statusEl) {
+      statusEl.textContent = 'En iPhone/iPad usa Safari y añade la app a la pantalla de inicio (ver instrucciones abajo).';
+    }
+    if (!snoozed && installBanner) {
+      installBanner.hidden = false;
+      if (bannerText) {
+        bannerText.textContent = 'En Safari: Compartir → Añadir a pantalla de inicio.';
+      }
+      if (bannerBtn) bannerBtn.style.display = 'none';
+    }
+  } else if (isAndroid && androidHint) {
+    androidHint.hidden = false;
+    if (xiaomiNote && isXiaomiDevice()) xiaomiNote.hidden = false;
+    if (statusEl) {
+      statusEl.textContent = isXiaomiDevice()
+        ? 'En tu Xiaomi, abre esta página en Chrome y añádela a la pantalla de inicio (instrucciones abajo).'
+        : 'En Android usa Chrome y el menú ⋮ para instalar la app (instrucciones abajo).';
+    }
+    if (!snoozed && installBanner) {
+      installBanner.hidden = false;
+      if (bannerText) {
+        bannerText.textContent = isXiaomiDevice()
+          ? 'Xiaomi/HyperOS: Chrome → ⋮ → Añadir a pantalla de inicio.'
+          : 'Chrome → ⋮ → Instalar aplicación o Añadir a pantalla de inicio.';
+      }
+    }
+  } else if (!isIos && desktopHint && !isAndroid) {
+    desktopHint.hidden = false;
   }
 
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn.style.display = 'inline-flex';
-    if (statusEl) {
-      statusEl.textContent = 'Listo para instalar. Usa el botón o el menú de Chrome → Instalar app.';
-    }
-  });
-
-  installBtn.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
+  const triggerInstall = async () => {
+    if (!deferredPrompt) return false;
     deferredPrompt.prompt();
     try {
       const choice = await deferredPrompt.userChoice;
@@ -2857,11 +3062,41 @@ function initPwaInstall() {
     }
     deferredPrompt = null;
     installBtn.style.display = 'none';
+    if (installBanner) installBanner.hidden = true;
+    return true;
+  };
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'inline-flex';
+    if (statusEl) {
+      statusEl.textContent = 'Listo para instalar. Usa el botón o el menú del navegador → Instalar app.';
+    }
+    if (!snoozed && installBanner) {
+      installBanner.hidden = false;
+      if (bannerText) {
+        bannerText.textContent = 'Instálala como app a pantalla completa, sin tienda de aplicaciones.';
+      }
+      if (bannerBtn) bannerBtn.style.display = '';
+    }
   });
+
+  installBtn.addEventListener('click', () => triggerInstall());
+  if (bannerBtn) {
+    bannerBtn.addEventListener('click', () => triggerInstall());
+  }
+  if (bannerLater) {
+    bannerLater.addEventListener('click', () => {
+      sessionStorage.setItem('goldwing_install_snooze', '1');
+      if (installBanner) installBanner.hidden = true;
+    });
+  }
 
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
     installBtn.style.display = 'none';
+    if (installBanner) installBanner.hidden = true;
     if (statusEl) {
       statusEl.textContent = 'GoldwingGas quedó instalada. Ábrela desde el icono de la pantalla de inicio.';
     }
@@ -2880,10 +3115,11 @@ function daysSinceBackup() {
 }
 
 function formatBackupDate(iso) {
-  if (!iso) return 'Nunca';
+  if (!iso) return typeof t === 'function' ? t('backup.never') : 'Nunca';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'Nunca';
-  return d.toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' });
+  if (Number.isNaN(d.getTime())) return typeof t === 'function' ? t('backup.never') : 'Nunca';
+  const locale = typeof getDateLocale === 'function' ? getDateLocale() : 'es-CL';
+  return d.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 function markBackupDone() {

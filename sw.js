@@ -1,10 +1,11 @@
 /* GoldwingGas — service worker (shell cache for offline / installable PWA) */
-const CACHE_VERSION = 'goldwinggas-v3';
+const CACHE_VERSION = 'goldwinggas-v6';
 const SHELL_ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './js/i18n.js',
   './manifest.webmanifest',
   './assets/goldwing-art.jpg',
   './assets/goldwing-art-card.jpg',
@@ -16,6 +17,12 @@ const SHELL_ASSETS = [
   './assets/icons/favicon-16.png',
   './assets/icons/favicon.ico'
 ];
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

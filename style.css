@@ -148,37 +148,55 @@ body {
 
 /* Navigation Tabs */
 .app-nav {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
   margin-bottom: 15px;
+  background-color: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-light);
 }
 
 .nav-tab {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 10px;
-  background-color: var(--panel-bg);
-  border: 1px solid var(--panel-border);
+  gap: 6px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 8px;
+  background-color: transparent;
+  border: 1px solid transparent;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-family: inherit;
+  font-size: 0.85rem;
   font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
   border-radius: 8px;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.nav-tab i {
+  flex-shrink: 0;
+  font-size: 0.95rem;
 }
 
 .nav-tab:hover {
   color: var(--text-main);
-  background-color: rgba(255,255,255,0.02);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .nav-tab.active {
   color: var(--accent-gold);
-  background-color: var(--panel-bg);
-  border-color: var(--accent-gold);
+  background-color: rgba(255, 179, 0, 0.08);
+  border-color: rgba(255, 179, 0, 0.45);
   box-shadow: 0 0 10px var(--accent-gold-glow);
 }
 
@@ -233,6 +251,20 @@ body {
   .quick-odometer {
     align-items: flex-start;
     width: 100%;
+  }
+  .app-nav {
+    gap: 4px;
+    padding: 6px;
+  }
+  .nav-tab {
+    flex-direction: column;
+    gap: 4px;
+    min-height: 52px;
+    padding: 8px 4px;
+    font-size: 0.68rem;
+  }
+  .nav-tab i {
+    font-size: 1rem;
   }
 }
 
@@ -859,6 +891,68 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.install-banner,
+.sw-update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+
+.install-banner {
+  border: 1px solid rgba(100, 181, 246, 0.45);
+  background: rgba(100, 181, 246, 0.08);
+}
+
+.install-banner[hidden],
+.sw-update-banner[hidden] {
+  display: none !important;
+}
+
+.install-banner-copy p,
+.sw-update-banner-copy p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.install-banner-copy strong,
+.sw-update-banner-copy strong {
+  color: var(--accent-blue, #64b5f6);
+}
+
+.install-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sw-update-banner {
+  border: 1px solid rgba(129, 199, 132, 0.45);
+  background: rgba(129, 199, 132, 0.08);
+}
+
+.sw-update-banner-copy strong {
+  color: var(--accent-green, #81c784);
+}
+
+.pwa-platform-hint {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 0.85rem;
+}
+
+.pwa-platform-hint p {
+  margin: 0;
 }
 
 .file-upload-btn {
