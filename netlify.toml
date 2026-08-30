@@ -1,0 +1,39 @@
+# GoldwingGas — sitio estático (sin build).
+# Publica la raíz del repo. No requiere GitHub: también funciona con Netlify Drop / CLI.
+
+[build]
+  publish = "."
+  command = "true"
+
+[build.processing]
+  skip_processing = true
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json; charset=utf-8"
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+
+# Share Target de la PWA (Beeline → GoldwingGas). El service worker intercepta el POST.
+[[redirects]]
+  from = "/share-target"
+  to = "/index.html"
+  status = 200

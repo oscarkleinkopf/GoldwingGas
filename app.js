@@ -2996,8 +2996,27 @@ function isXiaomiDevice() {
   return /xiaomi|miui|redmi|hyperos|mi\s15|mi\s14/i.test(navigator.userAgent);
 }
 
+function appPublicUrl() {
+  const path = window.location.pathname.replace(/index\.html$/i, '');
+  const base = path.endsWith('/') ? path : `${path}/`;
+  return `${window.location.origin}${base}`;
+}
+
+function refreshCanonicalLinks() {
+  const url = appPublicUrl();
+  const canonical = document.getElementById('canonical-url');
+  if (canonical) canonical.href = url;
+  const ogUrl = document.querySelector('meta[property="og:url"]');
+  if (ogUrl) ogUrl.setAttribute('content', url);
+  const ogImage = document.querySelector('meta[property="og:image"]');
+  if (ogImage && !/^https?:\/\//i.test(ogImage.getAttribute('content') || '')) {
+    ogImage.setAttribute('content', `${url}assets/icons/icon-512.png`);
+  }
+}
+
 function initPwaInstall() {
   const installBtn = document.getElementById('btn-install-pwa');
+  const headerBtn = document.getElementById('btn-install-header');
   const bannerBtn = document.getElementById('btn-install-banner');
   const bannerLater = document.getElementById('btn-install-later');
   const installBanner = document.getElementById('install-banner');
@@ -3007,7 +3026,15 @@ function initPwaInstall() {
   const androidHint = document.getElementById('pwa-install-android-hint');
   const xiaomiNote = document.getElementById('pwa-xiaomi-note');
   const desktopHint = document.getElementById('pwa-install-desktop-hint');
-  if (!installBtn) return;
+  const modal = document.getElementById('modal-install-pwa');
+  const closeModal = document.getElementById('close-install-modal');
+  const nativeBtn = document.getElementById('btn-install-native');
+  const copyBtn = document.getElementById('btn-install-copy-url');
+  const openChromeBtn = document.getElementById('btn-install-open-chrome');
+  const urlBox = document.getElementById('install-modal-url');
+
+  refreshCanonicalLinks();
+  if (urlBox) urlBox.textContent = appPublicUrl();
 
   let deferredPrompt = null;
   const isStandalone = isPwaStandalone();
@@ -3015,88 +3042,126 @@ function initPwaInstall() {
   const isAndroid = isAndroidDevice();
   const snoozed = sessionStorage.getItem('goldwing_install_snooze') === '1';
 
-  if (isStandalone && statusEl) {
-    statusEl.textContent = 'GoldwingGas ya está instalada en este dispositivo.';
-  } else if (isIos && iosHint) {
-    iosHint.hidden = false;
-    if (statusEl) {
-      statusEl.textContent = 'En iPhone/iPad usa Safari y añade la app a la pantalla de inicio (ver instrucciones abajo).';
-    }
-    if (!snoozed && installBanner) {
-      installBanner.hidden = false;
-      if (bannerText) {
-        bannerText.textContent = 'En Safari: Compartir → Añadir a pantalla de inicio.';
-      }
-      if (bannerBtn) bannerBtn.style.display = 'none';
-    }
-  } else if (isAndroid && androidHint) {
-    androidHint.hidden = false;
-    if (xiaomiNote && isXiaomiDevice()) xiaomiNote.hidden = false;
-    if (statusEl) {
-      statusEl.textContent = isXiaomiDevice()
-        ? 'En tu Xiaomi, abre esta página en Chrome y añádela a la pantalla de inicio (instrucciones abajo).'
-        : 'En Android usa Chrome y el menú ⋮ para instalar la app (instrucciones abajo).';
-    }
-    if (!snoozed && installBanner) {
-      installBanner.hidden = false;
-      if (bannerText) {
-        bannerText.textContent = isXiaomiDevice()
-          ? 'Xiaomi/HyperOS: Chrome → ⋮ → Añadir a pantalla de inicio.'
-          : 'Chrome → ⋮ → Instalar aplicación o Añadir a pantalla de inicio.';
-      }
-    }
-  } else if (!isIos && desktopHint && !isAndroid) {
-    desktopHint.hidden = false;
-  }
+  const setInstallButtonsVisible = (visible) => {
+    [installBtn, headerBtn].forEach((btn) => {
+      if (btn) btn.style.display = visible ? 'inline-flex' : 'none';
+    });
+  };
+
+  const openInstallModal = () => {
+    if (!modal) return;
+    if (urlBox) urlBox.textContent = appPublicUrl();
+    modal.classList.add('open');
+  };
+
+  const closeInstallModal = () => {
+    if (modal) modal.classList.remove('open');
+  };
 
   const triggerInstall = async () => {
-    if (!deferredPrompt) return false;
-    deferredPrompt.prompt();
-    try {
-      const choice = await deferredPrompt.userChoice;
-      if (choice.outcome === 'accepted' && statusEl) {
-        statusEl.textContent = 'Instalación iniciada. Busca el icono GoldwingGas en la pantalla de inicio.';
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      try {
+        const choice = await deferredPrompt.userChoice;
+        if (choice.outcome === 'accepted' && statusEl) {
+          statusEl.textContent = 'Instalación iniciada. Busca el icono GoldwingGas en la pantalla de inicio.';
+        }
+      } catch (err) {
+        console.warn('Install prompt error:', err);
       }
-    } catch (err) {
-      console.warn('Install prompt error:', err);
+      deferredPrompt = null;
+      return true;
     }
-    deferredPrompt = null;
-    installBtn.style.display = 'none';
-    if (installBanner) installBanner.hidden = true;
-    return true;
+    openInstallModal();
+    return false;
   };
+
+  if (isStandalone) {
+    setInstallButtonsVisible(true);
+    if (headerBtn) headerBtn.innerHTML = '<i class="fa-brands fa-chrome"></i> Abrir en Chrome';
+    if (installBanner) installBanner.hidden = true;
+    if (statusEl) {
+      statusEl.textContent = 'Estás a pantalla completa (sin menú ⋮). Toca Abrir en Chrome arriba para ver la barra del navegador e instalar o compartir el enlace.';
+    }
+  } else {
+    setInstallButtonsVisible(true);
+    if (installBanner) installBanner.hidden = !!snoozed;
+    if (bannerText) {
+      bannerText.textContent = 'Toca Instalar: no necesitas el menú del navegador (útil si estás a pantalla completa).';
+    }
+    if (isIos && iosHint) {
+      iosHint.hidden = false;
+      if (statusEl) statusEl.textContent = 'En iPhone/iPad: Safari → Compartir → Añadir a pantalla de inicio.';
+    } else if (isAndroid && androidHint) {
+      androidHint.hidden = false;
+      if (xiaomiNote && isXiaomiDevice()) xiaomiNote.hidden = false;
+      if (statusEl) {
+        statusEl.textContent = 'Toca Instalar app arriba. Si Chrome no muestra el recuadro, el botón abre las instrucciones (Xiaomi: Añadir a pantalla de inicio).';
+      }
+    } else if (desktopHint) {
+      desktopHint.hidden = false;
+    }
+  }
 
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    installBtn.style.display = 'inline-flex';
-    if (statusEl) {
-      statusEl.textContent = 'Listo para instalar. Usa el botón o el menú del navegador → Instalar app.';
+    if (!isStandalone) {
+      setInstallButtonsVisible(true);
+      if (!snoozed && installBanner) installBanner.hidden = false;
     }
-    if (!snoozed && installBanner) {
-      installBanner.hidden = false;
-      if (bannerText) {
-        bannerText.textContent = 'Instálala como app a pantalla completa, sin tienda de aplicaciones.';
-      }
-      if (bannerBtn) bannerBtn.style.display = '';
+    if (statusEl && !isStandalone) {
+      statusEl.textContent = 'Listo para instalar. Toca Instalar app (no hace falta el menú ⋮).';
     }
   });
 
-  installBtn.addEventListener('click', () => triggerInstall());
-  if (bannerBtn) {
-    bannerBtn.addEventListener('click', () => triggerInstall());
+  [installBtn, bannerBtn].forEach((btn) => {
+    if (btn) btn.addEventListener('click', () => triggerInstall());
+  });
+  if (headerBtn) {
+    headerBtn.addEventListener('click', () => {
+      if (isPwaStandalone()) {
+        window.open(appPublicUrl(), '_blank', 'noopener');
+        return;
+      }
+      triggerInstall();
+    });
   }
+  if (nativeBtn) nativeBtn.addEventListener('click', () => triggerInstall());
   if (bannerLater) {
     bannerLater.addEventListener('click', () => {
       sessionStorage.setItem('goldwing_install_snooze', '1');
       if (installBanner) installBanner.hidden = true;
     });
   }
+  if (closeModal) closeModal.addEventListener('click', closeInstallModal);
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeInstallModal();
+    });
+  }
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(appPublicUrl());
+        copyBtn.textContent = 'Enlace copiado';
+        setTimeout(() => { copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Copiar enlace'; }, 1600);
+      } catch (err) {
+        notifyUser(appPublicUrl(), 'info');
+      }
+    });
+  }
+  if (openChromeBtn) {
+    openChromeBtn.addEventListener('click', () => {
+      window.open(appPublicUrl(), '_blank', 'noopener');
+    });
+  }
 
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    installBtn.style.display = 'none';
+    setInstallButtonsVisible(false);
     if (installBanner) installBanner.hidden = true;
+    closeInstallModal();
     if (statusEl) {
       statusEl.textContent = 'GoldwingGas quedó instalada. Ábrela desde el icono de la pantalla de inicio.';
     }

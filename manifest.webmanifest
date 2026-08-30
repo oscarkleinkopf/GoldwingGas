@@ -1,5 +1,5 @@
 {
-  "id": "/GoldwingGas/",
+  "id": "/",
   "name": "GoldwingGas — GL-1000 Tracker",
   "short_name": "GoldwingGas",
   "description": "Bitácora de bencina y mantenimiento para Honda Goldwing GL-1000. Datos locales, OCR en el navegador.",
@@ -8,6 +8,8 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "prefer_related_applications": false,
   "orientation": "any",
   "background_color": "#0b0d0e",
   "theme_color": "#0b0d0e",

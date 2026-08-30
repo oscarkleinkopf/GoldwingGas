@@ -39,7 +39,7 @@ Hoy `app.js` supera las ~2k líneas. Antes de un framework:
 | Idea | Nota |
 |------|------|
 | Backend / cuenta de usuario | Choca con la promesa “100 % local y privado”. Preferible sync opcional (p. ej. archivo en disco / WebDAV) antes que login. |
-| Netlify Functions + DB | Solo si se quiere multi-dispositivo con consentimiento explícito. |
+| Netlify Functions + DB | El **hosting estático** en Netlify ya está. Functions/DB solo si se quiere multi-dispositivo con consentimiento explícito. |
 | React/Vite | Útil si el equipo crece; implica build + cambiar docs de deploy. |
 | Tests unitarios del parser CSV/OCR | Extraer parsers a funciones puras y cubrir con Vitest/Jest en Node. |
 

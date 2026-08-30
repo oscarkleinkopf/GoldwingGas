@@ -13,12 +13,13 @@
   <meta property="og:site_name" content="GoldwingGas">
   <meta property="og:title" content="GoldwingGas — GL-1000 Tracker">
   <meta property="og:description" content="Bitácora de bencina y mantenimiento para Honda Goldwing GL-1000. Datos locales, OCR en el navegador.">
-  <meta property="og:image" content="https://oscarkleinkopf.github.io/GoldwingGas/assets/icons/icon-512.png">
-  <meta property="og:url" content="https://oscarkleinkopf.github.io/GoldwingGas/">
+  <meta property="og:image" content="assets/icons/icon-512.png">
+  <meta property="og:url" content="./">
+  <link rel="canonical" id="canonical-url" href="./">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="GoldwingGas — GL-1000 Tracker">
   <meta name="twitter:description" content="Bitácora de bencina y mantenimiento para Honda Goldwing GL-1000. Datos 100 % locales.">
-  <meta name="twitter:image" content="https://oscarkleinkopf.github.io/GoldwingGas/assets/icons/icon-512.png">
+  <meta name="twitter:image" content="assets/icons/icon-512.png">
   <title>GoldwingGas - GL-1000 Tracker</title>
 
   <link rel="manifest" href="manifest.webmanifest">
@@ -65,6 +66,11 @@
       </div>
       
       <!-- Quick Info Bar -->
+      <div class="header-actions">
+        <button type="button" class="btn btn-primary btn-sm" id="btn-install-header">
+          <i class="fa-solid fa-download"></i> Instalar app
+        </button>
+      </div>
       <div class="quick-odometer">
         <span class="label" data-i18n="header.odometer">ODÓMETRO TOTAL</span>
         <div class="mechanical-odo" id="header-odo">
@@ -104,7 +110,7 @@
       
       <!-- TAB 1: DASHBOARD -->
       <section id="tab-dashboard" class="tab-pane active">
-        <div id="install-banner" class="install-banner" hidden>
+        <div id="install-banner" class="install-banner">
           <div class="install-banner-copy">
             <strong><i class="fa-solid fa-mobile-screen-button"></i> Instalar GoldwingGas</strong>
             <p id="install-banner-text">Úsala como app a pantalla completa, sin Google Play.</p>
@@ -750,7 +756,7 @@
             <h2><i class="fa-solid fa-mobile-screen-button"></i> Instalar como app (PWA)</h2>
             <p>GoldwingGas es una <strong>Progressive Web App</strong>: se instala desde el navegador y queda como icono a pantalla completa, sin Google Play ni App Store. Los datos siguen en tu dispositivo.</p>
             <p class="text-muted" id="pwa-install-status">Si ya está instalada, ábrela desde el icono GoldwingGas en tu pantalla de inicio o escritorio.</p>
-            <button type="button" class="btn btn-primary" id="btn-install-pwa" style="display: none; margin-top: 10px;">
+            <button type="button" class="btn btn-primary" id="btn-install-pwa" style="margin-top: 10px;">
               <i class="fa-solid fa-download"></i> Instalar GoldwingGas
             </button>
             <div id="pwa-install-android-hint" class="pwa-platform-hint" hidden>
@@ -1030,6 +1036,36 @@
         
         <div class="modal-footer" id="batch-modal-footer" style="display: none; padding-top: 15px; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05);">
           <button type="button" class="btn btn-primary" id="btn-finish-batch">Finalizar y Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal" id="modal-install-pwa">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-mobile-screen-button"></i> Instalar GoldwingGas</h3>
+        <span class="close-modal" id="close-install-modal" role="button" aria-label="Cerrar">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p id="install-modal-lead">No hace falta el menú del navegador. Si Chrome ofrece el cuadro nativo, úsalo; si no, sigue estos pasos.</p>
+        <ol class="beeline-steps" id="install-modal-steps">
+          <li>Toca <strong>Instalar ahora</strong> abajo si aparece el cuadro de Chrome.</li>
+          <li>Si estás a pantalla completa y no ves menús: toca <strong>Abrir en Chrome</strong> (con barra de direcciones).</li>
+          <li>Xiaomi: en Chrome, ⋮ → <strong>Añadir a pantalla de inicio</strong> / <strong>Instalar aplicación</strong>.</li>
+        </ol>
+        <p class="text-muted" style="font-size: 0.8rem;" id="install-modal-url-label">Enlace de esta copia (Netlify o el hosting que uses):</p>
+        <p class="install-url-box" id="install-modal-url"></p>
+        <div class="backup-actions" style="margin-top: 12px;">
+          <button type="button" class="btn btn-primary" id="btn-install-native">
+            <i class="fa-solid fa-download"></i> Instalar ahora
+          </button>
+          <button type="button" class="btn btn-secondary" id="btn-install-open-chrome">
+            <i class="fa-brands fa-chrome"></i> Abrir en Chrome
+          </button>
+          <button type="button" class="btn btn-neutral" id="btn-install-copy-url">
+            <i class="fa-solid fa-copy"></i> Copiar enlace
+          </button>
         </div>
       </div>
     </div>

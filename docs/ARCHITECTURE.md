@@ -128,4 +128,4 @@ Rutas relativas (`./`) para que funcione bajo `https://…github.io/GoldwingGas/
 
 ## Deploy
 
-Estático en GitHub Pages desde `main` + `.nojekyll`. No hay CI ni tests automatizados todavía (ver ROADMAP).
+Estático en **Netlify** (`netlify.toml`, publish `.`) o GitHub Pages (`main` + `.nojekyll`). No hay CI ni tests automatizados todavía (ver ROADMAP). Guía: [NETLIFY.md](NETLIFY.md).
