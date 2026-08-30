@@ -9,6 +9,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="GoldwingGas">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GoldwingGas">
+  <meta property="og:title" content="GoldwingGas — GL-1000 Tracker">
+  <meta property="og:description" content="Bitácora de bencina y mantenimiento para Honda Goldwing GL-1000. Datos locales, OCR en el navegador.">
+  <meta property="og:image" content="https://oscarkleinkopf.github.io/GoldwingGas/assets/icons/icon-512.png">
+  <meta property="og:url" content="https://oscarkleinkopf.github.io/GoldwingGas/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="GoldwingGas — GL-1000 Tracker">
+  <meta name="twitter:description" content="Bitácora de bencina y mantenimiento para Honda Goldwing GL-1000. Datos 100 % locales.">
+  <meta name="twitter:image" content="https://oscarkleinkopf.github.io/GoldwingGas/assets/icons/icon-512.png">
   <title>GoldwingGas - GL-1000 Tracker</title>
 
   <link rel="manifest" href="manifest.webmanifest">
@@ -94,6 +104,27 @@
       
       <!-- TAB 1: DASHBOARD -->
       <section id="tab-dashboard" class="tab-pane active">
+        <div id="install-banner" class="install-banner" hidden>
+          <div class="install-banner-copy">
+            <strong><i class="fa-solid fa-mobile-screen-button"></i> Instalar GoldwingGas</strong>
+            <p id="install-banner-text">Úsala como app a pantalla completa, sin Google Play.</p>
+          </div>
+          <div class="install-banner-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-install-banner">
+              <i class="fa-solid fa-download"></i> Instalar
+            </button>
+            <button type="button" class="btn btn-neutral btn-sm" id="btn-install-later">Más tarde</button>
+          </div>
+        </div>
+        <div id="sw-update-banner" class="sw-update-banner" hidden>
+          <div class="sw-update-banner-copy">
+            <strong><i class="fa-solid fa-rotate"></i> Actualización disponible</strong>
+            <p>Hay una versión nueva de GoldwingGas. Recarga para aplicarla.</p>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-sw-reload">
+            <i class="fa-solid fa-arrows-rotate"></i> Recargar
+          </button>
+        </div>
         <div id="backup-banner" class="backup-banner" hidden>
           <div class="backup-banner-copy">
             <strong id="backup-banner-title"><i class="fa-solid fa-shield-halved"></i> Respaldo pendiente</strong>
@@ -708,12 +739,18 @@
           </div>
           
           <div class="card help-card" id="card-install-pwa">
-            <h2><i class="fa-solid fa-mobile-screen-button"></i> Instalar en el teléfono</h2>
-            <p>GoldwingGas es una app instalable (PWA). En Android, ábrela en <strong>Chrome</strong> y elige <strong>Instalar app</strong> o <strong>Añadir a la pantalla de inicio</strong>. Queda como icono a pantalla completa, sin Google Play.</p>
-            <p class="text-muted" id="pwa-install-status">Si ya está instalada, puedes abrirla desde el icono GoldwingGas.</p>
+            <h2><i class="fa-solid fa-mobile-screen-button"></i> Instalar como app (PWA)</h2>
+            <p>GoldwingGas es una <strong>Progressive Web App</strong>: se instala desde el navegador y queda como icono a pantalla completa, sin Google Play ni App Store. Los datos siguen en tu dispositivo.</p>
+            <p class="text-muted" id="pwa-install-status">Si ya está instalada, ábrela desde el icono GoldwingGas en tu pantalla de inicio o escritorio.</p>
             <button type="button" class="btn btn-primary" id="btn-install-pwa" style="display: none; margin-top: 10px;">
               <i class="fa-solid fa-download"></i> Instalar GoldwingGas
             </button>
+            <div id="pwa-install-ios-hint" class="pwa-platform-hint" hidden>
+              <p><strong>iPhone / iPad (Safari):</strong> toca <i class="fa-solid fa-arrow-up-from-bracket"></i> <strong>Compartir</strong> → <strong>Añadir a pantalla de inicio</strong>.</p>
+            </div>
+            <div id="pwa-install-desktop-hint" class="pwa-platform-hint" hidden>
+              <p><strong>Escritorio (Chrome / Edge):</strong> icono de instalación en la barra de direcciones, o menú → <strong>Instalar GoldwingGas</strong>.</p>
+            </div>
           </div>
 
           <div class="card help-card dedication-card">
@@ -988,14 +1025,5 @@
   
   <!-- JS -->
   <script src="app.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch((err) => {
-          console.warn('Service worker no registrado:', err);
-        });
-      });
-    }
-  </script>
 </body>
 </html>

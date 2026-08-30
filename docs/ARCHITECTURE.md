@@ -115,14 +115,14 @@ Detalles de columnas y schema: [DATA_MODEL.md](DATA_MODEL.md).
 - Layout centrado `max-width: 1200px`, responsive vía media queries al final de `style.css`.
 - Componentes recurrentes: `.card`, `.btn`, `.data-table`, `.vintage-gauge`, `.indicator-lamp`, `.modal`.
 
-## PWA (instalación en Android)
+## PWA (instalación multiplataforma)
 
 | Archivo | Rol |
 |---------|-----|
-| `manifest.webmanifest` | `name`, `start_url`, `display: standalone`, iconos |
-| `sw.js` | Cache del shell local; CDNs network-first con fallback |
-| `assets/icons/*` | Iconos 192/512 + maskable + favicon |
-| `initPwaInstall()` en `app.js` | Captura `beforeinstallprompt` y botón en Ajustes |
+| `manifest.webmanifest` | `id`, `name`, `start_url`, `display: standalone`, iconos |
+| `sw.js` | Cache del shell local; CDNs network-first; aviso de actualización |
+| `assets/icons/*` | Iconos 192/512 + maskable + favicon + apple-touch |
+| `initPwaInstall()` / `initServiceWorker()` en `app.js` | Banner de instalación, `beforeinstallprompt`, hints iOS/escritorio |
 
 Rutas relativas (`./`) para que funcione bajo `https://…github.io/GoldwingGas/`.
 

@@ -861,6 +861,68 @@ body {
   flex-wrap: wrap;
 }
 
+.install-banner,
+.sw-update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+
+.install-banner {
+  border: 1px solid rgba(100, 181, 246, 0.45);
+  background: rgba(100, 181, 246, 0.08);
+}
+
+.install-banner[hidden],
+.sw-update-banner[hidden] {
+  display: none !important;
+}
+
+.install-banner-copy p,
+.sw-update-banner-copy p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.install-banner-copy strong,
+.sw-update-banner-copy strong {
+  color: var(--accent-blue, #64b5f6);
+}
+
+.install-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sw-update-banner {
+  border: 1px solid rgba(129, 199, 132, 0.45);
+  background: rgba(129, 199, 132, 0.08);
+}
+
+.sw-update-banner-copy strong {
+  color: var(--accent-green, #81c784);
+}
+
+.pwa-platform-hint {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 0.85rem;
+}
+
+.pwa-platform-hint p {
+  margin: 0;
+}
+
 .file-upload-btn {
   position: relative;
   overflow: hidden;

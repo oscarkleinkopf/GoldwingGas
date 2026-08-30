@@ -66,6 +66,7 @@ async function bootApp() {
   initFuelAdditiveCalc();
   initAltitudeCalc();
   initSparkPlugDiag();
+  initServiceWorker();
   initPwaInstall();
   initBackupUi();
   
@@ -2818,34 +2819,99 @@ function updateEfficiencyStyleChart() {
 }
 
 // ==========================================
-// PWA INSTALL (Android / Chrome — sin Play Store)
+// SERVICE WORKER + PWA INSTALL
 // ==========================================
+function isPwaStandalone() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  );
+}
+
+function isIosDevice() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+
+function initServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then((reg) => {
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showSwUpdateBanner();
+          }
+        });
+      });
+    }).catch((err) => {
+      console.warn('Service worker no registrado:', err);
+    });
+  });
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+}
+
+function showSwUpdateBanner() {
+  const banner = document.getElementById('sw-update-banner');
+  const reloadBtn = document.getElementById('btn-sw-reload');
+  if (!banner) return;
+  banner.hidden = false;
+  if (reloadBtn && !reloadBtn.dataset.bound) {
+    reloadBtn.dataset.bound = '1';
+    reloadBtn.addEventListener('click', () => {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+      } else {
+        window.location.reload();
+      }
+    });
+  }
+}
+
 function initPwaInstall() {
   const installBtn = document.getElementById('btn-install-pwa');
+  const bannerBtn = document.getElementById('btn-install-banner');
+  const bannerLater = document.getElementById('btn-install-later');
+  const installBanner = document.getElementById('install-banner');
+  const bannerText = document.getElementById('install-banner-text');
   const statusEl = document.getElementById('pwa-install-status');
+  const iosHint = document.getElementById('pwa-install-ios-hint');
+  const desktopHint = document.getElementById('pwa-install-desktop-hint');
   if (!installBtn) return;
 
   let deferredPrompt = null;
-
-  const isStandalone =
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true;
+  const isStandalone = isPwaStandalone();
+  const isIos = isIosDevice();
+  const snoozed = sessionStorage.getItem('goldwing_install_snooze') === '1';
 
   if (isStandalone && statusEl) {
     statusEl.textContent = 'GoldwingGas ya está instalada en este dispositivo.';
+  } else if (isIos && iosHint) {
+    iosHint.hidden = false;
+    if (statusEl) {
+      statusEl.textContent = 'En iPhone/iPad usa Safari y añade la app a la pantalla de inicio (ver instrucciones abajo).';
+    }
+    if (!snoozed && installBanner) {
+      installBanner.hidden = false;
+      if (bannerText) {
+        bannerText.textContent = 'En Safari: Compartir → Añadir a pantalla de inicio.';
+      }
+      if (bannerBtn) bannerBtn.style.display = 'none';
+    }
+  } else if (!isIos && desktopHint && !/android/i.test(navigator.userAgent)) {
+    desktopHint.hidden = false;
   }
 
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn.style.display = 'inline-flex';
-    if (statusEl) {
-      statusEl.textContent = 'Listo para instalar. Usa el botón o el menú de Chrome → Instalar app.';
-    }
-  });
-
-  installBtn.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
+  const triggerInstall = async () => {
+    if (!deferredPrompt) return false;
     deferredPrompt.prompt();
     try {
       const choice = await deferredPrompt.userChoice;
@@ -2857,11 +2923,41 @@ function initPwaInstall() {
     }
     deferredPrompt = null;
     installBtn.style.display = 'none';
+    if (installBanner) installBanner.hidden = true;
+    return true;
+  };
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'inline-flex';
+    if (statusEl) {
+      statusEl.textContent = 'Listo para instalar. Usa el botón o el menú del navegador → Instalar app.';
+    }
+    if (!snoozed && installBanner) {
+      installBanner.hidden = false;
+      if (bannerText) {
+        bannerText.textContent = 'Instálala como app a pantalla completa, sin tienda de aplicaciones.';
+      }
+      if (bannerBtn) bannerBtn.style.display = '';
+    }
   });
+
+  installBtn.addEventListener('click', () => triggerInstall());
+  if (bannerBtn) {
+    bannerBtn.addEventListener('click', () => triggerInstall());
+  }
+  if (bannerLater) {
+    bannerLater.addEventListener('click', () => {
+      sessionStorage.setItem('goldwing_install_snooze', '1');
+      if (installBanner) installBanner.hidden = true;
+    });
+  }
 
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
     installBtn.style.display = 'none';
+    if (installBanner) installBanner.hidden = true;
     if (statusEl) {
       statusEl.textContent = 'GoldwingGas quedó instalada. Ábrela desde el icono de la pantalla de inicio.';
     }
