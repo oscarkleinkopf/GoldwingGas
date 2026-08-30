@@ -1,10 +1,11 @@
 /* GoldwingGas — service worker (shell cache for offline / installable PWA) */
-const CACHE_VERSION = 'goldwinggas-v5';
+const CACHE_VERSION = 'goldwinggas-v6';
 const SHELL_ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './js/i18n.js',
   './manifest.webmanifest',
   './assets/goldwing-art.jpg',
   './assets/goldwing-art-card.jpg',

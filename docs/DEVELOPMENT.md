@@ -109,7 +109,7 @@ Validación manual mínima antes de merge:
 6. (Si tocaste OCR) una foto de prueba; comprobar que `localStorage` no contiene data URLs enormes.
 7. Banner de respaldo: sin `lastBackupAt` aparece; tras descargar JSON, desaparece.
 
-Cuando se añadan tests, documentar el comando aquí (ver ROADMAP).
+Cuando se añadan tests, documentar el comando aquí (ver ROADMAP). Checklist manual: [QA.md](QA.md).
 
 ## PWA / service worker
 

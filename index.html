@@ -66,7 +66,7 @@
       
       <!-- Quick Info Bar -->
       <div class="quick-odometer">
-        <span class="label">ODÓMETRO TOTAL</span>
+        <span class="label" data-i18n="header.odometer">ODÓMETRO TOTAL</span>
         <div class="mechanical-odo" id="header-odo">
           <!-- Mechanical-looking digits -->
           <span class="odo-digit">0</span>
@@ -83,19 +83,19 @@
     <!-- Navigation Tabs -->
     <nav class="app-nav">
       <button class="nav-tab active" data-tab="tab-dashboard" id="tab-btn-dashboard">
-        <i class="fa-solid fa-gauge-high"></i> Tablero
+        <i class="fa-solid fa-gauge-high"></i> <span data-i18n="nav.dashboard">Tablero</span>
       </button>
       <button class="nav-tab" data-tab="tab-fuel" id="tab-btn-fuel">
-        <i class="fa-solid fa-gas-pump"></i> Bencina
+        <i class="fa-solid fa-gas-pump"></i> <span data-i18n="nav.fuel">Bencina</span>
       </button>
       <button class="nav-tab" data-tab="tab-maintenance" id="tab-btn-maintenance">
-        <i class="fa-solid fa-wrench"></i> Mantenimiento
+        <i class="fa-solid fa-wrench"></i> <span data-i18n="nav.maintenance">Mantenimiento</span>
       </button>
       <button class="nav-tab" data-tab="tab-panas" id="tab-btn-panas">
-        <i class="fa-solid fa-circle-question"></i> Guía de Panas
+        <i class="fa-solid fa-circle-question"></i> <span data-i18n="nav.panas">Guía de Panas</span>
       </button>
       <button class="nav-tab" data-tab="tab-settings" id="tab-btn-settings">
-        <i class="fa-solid fa-sliders"></i> Ajustes
+        <i class="fa-solid fa-sliders"></i> <span data-i18n="nav.settings">Ajustes</span>
       </button>
     </nav>
     
@@ -127,14 +127,14 @@
         </div>
         <div id="backup-banner" class="backup-banner" hidden>
           <div class="backup-banner-copy">
-            <strong id="backup-banner-title"><i class="fa-solid fa-shield-halved"></i> Respaldo pendiente</strong>
-            <p id="backup-banner-text">Los datos viven en este navegador. Descarga un JSON y guárdalo fuera del teléfono.</p>
+            <strong id="backup-banner-title"><i class="fa-solid fa-shield-halved"></i> <span data-i18n="backup.pendingTitle">Respaldo pendiente</span></strong>
+            <p id="backup-banner-text" data-i18n="backup.pendingText">Los datos viven en este navegador. Descarga un JSON y guárdalo fuera del teléfono.</p>
           </div>
           <div class="backup-banner-actions">
             <button type="button" class="btn btn-primary btn-sm" id="btn-backup-now">
-              <i class="fa-solid fa-file-export"></i> Descargar respaldo
+              <i class="fa-solid fa-file-export"></i> <span data-i18n="backup.download">Descargar respaldo</span>
             </button>
-            <button type="button" class="btn btn-neutral btn-sm" id="btn-backup-later">Más tarde</button>
+            <button type="button" class="btn btn-neutral btn-sm" id="btn-backup-later" data-i18n="backup.later">Más tarde</button>
           </div>
         </div>
         <div class="dashboard-grid">
@@ -340,14 +340,14 @@
               <table class="data-table" id="table-fuel-logs">
                 <thead>
                   <tr>
-                    <th>Fecha</th>
-                    <th>Odómetro (km)</th>
-                    <th>Carga (L)</th>
-                    <th>Total ($)</th>
-                    <th>Consumo</th>
-                    <th>Boleta/Foto</th>
-                    <th>Notas</th>
-                    <th>Acciones</th>
+                    <th data-i18n="table.fuel.date">Fecha</th>
+                    <th data-i18n="table.fuel.odometer">Odómetro (km)</th>
+                    <th data-i18n="table.fuel.liters">Carga (L)</th>
+                    <th data-i18n="table.fuel.cost">Total ($)</th>
+                    <th data-i18n="table.fuel.consumption">Consumo</th>
+                    <th data-i18n="table.fuel.receipt">Boleta/Foto</th>
+                    <th data-i18n="table.fuel.notes">Notas</th>
+                    <th data-i18n="table.fuel.actions">Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-fuel-logs">
@@ -435,13 +435,13 @@
               <table class="data-table" id="table-maint-logs">
                 <thead>
                   <tr>
-                    <th>Fecha</th>
-                    <th>Servicio / Tarea</th>
-                    <th>Kilometraje (km)</th>
-                    <th>Costo ($)</th>
-                    <th>Detalles / Repuestos</th>
-                    <th>Foto/Nota</th>
-                    <th>Acciones</th>
+                    <th data-i18n="table.maint.date">Fecha</th>
+                    <th data-i18n="table.maint.service">Servicio / Tarea</th>
+                    <th data-i18n="table.maint.odometer">Kilometraje (km)</th>
+                    <th data-i18n="table.maint.cost">Costo ($)</th>
+                    <th data-i18n="table.maint.details">Detalles / Repuestos</th>
+                    <th data-i18n="table.maint.photo">Foto/Nota</th>
+                    <th data-i18n="table.maint.actions">Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-maint-logs">
@@ -638,10 +638,10 @@
         <div class="settings-layout">
           
           <div class="card config-card">
-            <h2>Configuración de la Motocicleta</h2>
+            <h2 data-i18n="settings.bikeConfig">Configuración de la Motocicleta</h2>
             <form id="form-bike-settings">
               <div class="form-group">
-                <label for="settings-model-year">Año de Fabricación (GL-1000)</label>
+                <label for="settings-model-year" data-i18n="settings.modelYear">Año de Fabricación (GL-1000)</label>
                 <select id="settings-model-year" class="form-control">
                   <option value="1975">1975 (K0 - Primer modelo, reloj azul-verde)</option>
                   <option value="1976">1976 (K1 - Reloj azul-verde)</option>
@@ -652,29 +652,37 @@
               </div>
               
               <div class="form-group">
-                <label for="settings-initial-odo">Odómetro Inicial al comenzar a usar la App (km)</label>
+                <label for="settings-initial-odo" data-i18n="settings.initialOdo">Odómetro Inicial al comenzar a usar la App (km)</label>
                 <input type="number" id="settings-initial-odo" class="form-control" value="0" min="0">
               </div>
               
               <div class="form-group">
-                <label for="settings-currency">Símbolo de Moneda</label>
+                <label for="settings-language" data-i18n="settings.language">Idioma de la interfaz</label>
+                <select id="settings-language" class="form-control">
+                  <option value="es" data-i18n="settings.lang.es">Español</option>
+                  <option value="en" data-i18n="settings.lang.en">English</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="settings-currency" data-i18n="settings.currency">Símbolo de Moneda</label>
                 <input type="text" id="settings-currency" class="form-control" value="$" max="3">
               </div>
               
-              <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+              <button type="submit" class="btn btn-primary" data-i18n="settings.save">Guardar Configuración</button>
             </form>
           </div>
           
           <div class="card data-card">
-            <h2>Respaldo y Datos</h2>
+            <h2 data-i18n="settings.backup">Respaldo y Datos</h2>
             <p>El historial se guarda en este navegador. Las fotos de boletas van a IndexedDB para no saturar la bitácora. Un JSON de respaldo incluye ambos: guárdalo en Drive, PC o USB.</p>
             <div id="backup-status-box" class="backup-status">
               <div class="backup-status-row">
-                <span>Último respaldo</span>
-                <strong id="backup-last-label">Nunca</strong>
+                <span data-i18n="backup.last">Último respaldo</span>
+                <strong id="backup-last-label" data-i18n="backup.never">Nunca</strong>
               </div>
               <div class="backup-status-row">
-                <span>Almacenamiento usado</span>
+                <span data-i18n="backup.storage">Almacenamiento usado</span>
                 <span id="backup-storage-label">—</span>
               </div>
               <p class="text-muted" id="backup-status-hint" style="margin-top: 8px; font-size: 0.8rem;">Todavía no hay un archivo de respaldo.</p>
@@ -745,6 +753,10 @@
             <button type="button" class="btn btn-primary" id="btn-install-pwa" style="display: none; margin-top: 10px;">
               <i class="fa-solid fa-download"></i> Instalar GoldwingGas
             </button>
+            <div id="pwa-install-android-hint" class="pwa-platform-hint" hidden>
+              <p><strong>Android (Chrome):</strong> menú ⋮ arriba a la derecha → <strong>Instalar aplicación</strong> o <strong>Añadir a pantalla de inicio</strong>.</p>
+              <p id="pwa-xiaomi-note" hidden><strong>Xiaomi / HyperOS (p. ej. 15 Ultra):</strong> abre GoldwingGas en <strong>Google Chrome</strong>, no en el navegador Mi. Si no ves “Instalar”, usa ⋮ → <strong>Añadir a pantalla de inicio</strong>. Abre la app desde el icono de la pantalla de inicio para que quede a pantalla completa.</p>
+            </div>
             <div id="pwa-install-ios-hint" class="pwa-platform-hint" hidden>
               <p><strong>iPhone / iPad (Safari):</strong> toca <i class="fa-solid fa-arrow-up-from-bracket"></i> <strong>Compartir</strong> → <strong>Añadir a pantalla de inicio</strong>.</p>
             </div>
@@ -1024,6 +1036,7 @@
   </div>
   
   <!-- JS -->
+  <script src="js/i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

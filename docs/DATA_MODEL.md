@@ -21,6 +21,7 @@ Fotos de boletas/notas: IndexedDB **`goldwing_gas_photos`**, store `photos` (cla
     initialOdo: number,  // km de referencia / baseline
     currency: string,    // símbolo, p. ej. '$'
     lastBackupAt: string // ISO datetime del último JSON descargado/compartido, o ''
+    lang: string         // 'es' | 'en' — idioma de la interfaz
   }
 }
 ```
