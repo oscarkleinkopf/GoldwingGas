@@ -120,4 +120,4 @@ Probar instalación: Chrome → DevTools → Application → Manifest / Service 
 
 ## Deploy
 
-Push a `main` → GitHub Pages regenera el sitio. No hay secrets ni variables de entorno.
+Push a `main` → GitHub Pages regenera el sitio si sigue activo. En Netlify, un push (sitio conectado) o un Drop/CLI republica. No hay secrets ni variables de entorno. Ver [NETLIFY.md](NETLIFY.md).

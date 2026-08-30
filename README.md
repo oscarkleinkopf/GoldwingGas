@@ -85,6 +85,7 @@ GoldwingGas/
 ├── js/report.js            # Resumen HTML/PDF
 ├── style.css               # Tema vintage (variables CSS)
 ├── manifest.webmanifest    # Metadatos PWA / icono de instalación
+├── netlify.toml            # Hosting estático en Netlify (sin build)
 ├── sw.js                   # Service worker (cache del shell)
 ├── assets/
 │   ├── goldwing-art.jpg    # Arte de dedicatoria (en la app)
@@ -99,6 +100,7 @@ GoldwingGas/
     ├── ARCHITECTURE.md
     ├── DEVELOPMENT.md
     ├── DATA_MODEL.md
+    ├── NETLIFY.md
     └── ROADMAP.md
 ```
 
@@ -127,13 +129,21 @@ No hay `package.json` ni bundler: es HTML/CSS/JS vanilla + CDNs.
 
 ---
 
-## Deploy (GitHub Pages)
+## Deploy (Netlify — recomendado)
 
-Ya está configurado desde la rama `main`, carpeta `/ (root)`.
+Sitio estático, sin build. Configuración en [`netlify.toml`](netlify.toml). Guía: [docs/NETLIFY.md](docs/NETLIFY.md).
 
-URL: `https://oscarkleinkopf.github.io/GoldwingGas/`
+| Método | Cuándo |
+|--------|--------|
+| **Netlify Drop** | Puedes archivar o cerrar el repo de GitHub. Arrastra la carpeta a [app.netlify.com/drop](https://app.netlify.com/drop). |
+| **Importar repo** | Mientras GitHub exista: Import project → publish `.` |
+| **CLI** | `npx netlify-cli deploy --dir . --prod` |
 
-Tras un push a `main`, Pages reconstruye automáticamente. El archivo `.nojekyll` evita que Jekyll ignore assets.
+La URL queda `https://<nombre>.netlify.app`. Los datos de GitHub Pages **no se copian solos**: exporta JSON en Ajustes antes de cambiar de dominio.
+
+### GitHub Pages (legado)
+
+`https://oscarkleinkopf.github.io/GoldwingGas/` — se puede desactivar cuando Netlify esté en marcha.
 
 ---
 

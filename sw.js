@@ -1,6 +1,10 @@
 /* GoldwingGas — service worker (shell cache for offline / installable PWA) */
+<<<<<<< HEAD
+const CACHE_VERSION = 'goldwinggas-v8';
+=======
 const CACHE_VERSION = 'goldwinggas-v7';
 const SHARE_INBOX = 'goldwinggas-share-inbox';
+>>>>>>> origin/main
 const SHELL_ASSETS = [
   './',
   './index.html',
