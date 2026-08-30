@@ -40,14 +40,32 @@ Checklist reproducible antes de merge o deploy. Servir con `python3 -m http.serv
 
 ## GPX Beeline
 
-- [ ] Importar `.gpx` con km y fecha.
+- [ ] Importar `.gpx` con km y fecha desde **Bencina** y desde Ajustes.
 - [ ] Si hay carga el mismo día (o día siguiente), se liga a la bencina.
+- [ ] Duplicado (misma fecha + km) se omite.
+- [ ] En Xiaomi: Beeline → Share/download → ridden → Compartir a GoldwingGas (PWA) o elegir archivo.
+
+## Filtros y gráficos
+
+- [ ] Filtrar cargas por texto, fechas y tipo; Limpiar restaura la tabla.
+- [ ] Filtrar mantenimientos por texto, fechas y servicio.
+- [ ] Tablero muestra costo acumulado, histograma L/100km y km entre servicios.
+
+## Tipos de mantención propios
+
+- [ ] Añadir tipo extra en Ajustes (nombre + intervalo km) → aparece en preventivo y en el formulario.
+- [ ] Quitar tipo extra no borra logs históricos.
+
+## Resumen HTML
+
+- [ ] Ajustes → Resumen HTML / PDF abre ventana imprimible y descarga `.html`.
 
 ## OCR (si se tocó el parser)
 
 - [ ] Foto de boleta rellena campos editables antes de guardar.
 - [ ] Foto de nota de mantenimiento rellena tipo/fecha/km.
 - [ ] `localStorage` no contiene data URLs enormes (fotos en IndexedDB).
+- [ ] Boletas Copec/Shell/Petrobras rellenan estación si el texto lo trae.
 
 ## PWA / móvil
 

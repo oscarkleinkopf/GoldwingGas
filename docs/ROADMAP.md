@@ -14,11 +14,12 @@ Prioridades sugeridas para evolucionar GoldwingGas sin abandonar el modelo SPA l
 
 ## Mediano plazo (valor de producto)
 
-- [ ] **Filtros y búsqueda** en tablas de bencina/mantención (por rango de fechas, tipo, estación).
-- [ ] **Más tipos de mantención** configurables por el usuario (además del schedule fijo GL-1000).
-- [ ] **Mejora OCR** — preprocesado de imagen (contraste/umbral) antes de Tesseract; más patrones de boletas (Copec, Shell, Petrobras, etc.).
-- [ ] **Gráficos adicionales** — costo acumulado, histograma L/100km, km entre servicios.
-- [ ] **Modo “solo lectura / compartir”** — exportar un resumen HTML/PDF de la bitácora.
+- [x] **Filtros y búsqueda** en tablas de bencina/mantención (por rango de fechas, tipo, estación).
+- [x] **Más tipos de mantención** configurables por el usuario (además del schedule fijo GL-1000).
+- [x] **Mejora OCR** — preprocesado de imagen (contraste/umbral) antes de Tesseract; más patrones de boletas (Copec, Shell, Petrobras, etc.).
+- [x] **Gráficos adicionales** — costo acumulado, histograma L/100km, km entre servicios.
+- [x] **Modo “solo lectura / compartir”** — exportar un resumen HTML/PDF de la bitácora.
+- [x] **Beeline desde el celular** — tarjeta en Bencina, share target PWA y abrir .gpx.
 
 ## Estructura de código (cuando `app.js` pese demasiado)
 

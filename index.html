@@ -253,6 +253,30 @@
             </div>
           </div>
           
+          <div class="card extra-charts-card">
+            <h2>Más gráficos</h2>
+            <div class="extra-charts-grid">
+              <div>
+                <h3 class="chart-subtitle">Costo acumulado de bencina</h3>
+                <div class="chart-wrapper extra-chart-wrap">
+                  <canvas id="costChart"></canvas>
+                </div>
+              </div>
+              <div>
+                <h3 class="chart-subtitle">Histograma L/100km</h3>
+                <div class="chart-wrapper extra-chart-wrap">
+                  <canvas id="histChart"></canvas>
+                </div>
+              </div>
+              <div class="extra-chart-full">
+                <h3 class="chart-subtitle">Km entre servicios</h3>
+                <div class="chart-wrapper extra-chart-wrap">
+                  <canvas id="serviceGapChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <!-- Quick Actions -->
           <div class="card actions-card">
             <h2>Acciones Rápidas</h2>
@@ -327,6 +351,23 @@
             </div>
           </div>
           
+          <div class="card beeline-card" id="card-beeline-fuel">
+            <h2><i class="fa-solid fa-route"></i> Viajes Beeline (desde el celular)</h2>
+            <ol class="beeline-steps">
+              <li>Abre <strong>Beeline</strong> → elige el viaje.</li>
+              <li>Opciones → <strong>Share / download</strong> → ruta <strong>recorrida (ridden)</strong> en GPX.</li>
+              <li>En Xiaomi: <strong>Compartir</strong> → <strong>GoldwingGas</strong> (si la instalaste como app), o guarda en Descargas y elige el archivo aquí.</li>
+            </ol>
+            <p class="text-muted" style="font-size: 0.8rem;">Solo se guardan km, fecha y duración — no el mapa. Si hay una carga el mismo día (o al siguiente), se liga sola para comparar GPS vs odómetro.</p>
+            <div class="backup-actions">
+              <div class="file-upload-btn btn btn-primary">
+                <i class="fa-solid fa-file-import"></i> Elegir GPX de Beeline
+                <input type="file" id="input-import-gpx-fuel" accept=".gpx,application/gpx+xml,application/xml,text/xml" multiple>
+              </div>
+            </div>
+            <div class="rides-list" id="rides-list-fuel"></div>
+          </div>
+          
           <!-- Table spreadsheet of logs -->
           <div class="card logs-card">
             <div class="card-header-actions">
@@ -335,6 +376,20 @@
                 <i class="fa-solid fa-plus"></i> Nueva Carga
               </button>
             </div>
+            
+            <div class="table-filters" id="fuel-filters">
+              <input type="search" id="fuel-filter-q" class="form-control" placeholder="Buscar estación, notas…">
+              <input type="date" id="fuel-filter-from" class="form-control" title="Desde">
+              <input type="date" id="fuel-filter-to" class="form-control" title="Hasta">
+              <select id="fuel-filter-type" class="form-control">
+                <option value="">Todos los tipos</option>
+                <option value="Turismo">Turismo</option>
+                <option value="Ciudad">Ciudad</option>
+                <option value="Autopista">Autopista</option>
+              </select>
+              <button type="button" class="btn btn-neutral btn-sm" id="btn-fuel-filter-clear">Limpiar</button>
+            </div>
+            <p class="filter-count text-muted" id="fuel-filter-count"></p>
             
             <div class="table-responsive">
               <table class="data-table" id="table-fuel-logs">
@@ -430,6 +485,17 @@
                 <i class="fa-solid fa-plus"></i> Registrar Servicio
               </button>
             </div>
+            
+            <div class="table-filters" id="maint-filters">
+              <input type="search" id="maint-filter-q" class="form-control" placeholder="Buscar servicio, notas…">
+              <input type="date" id="maint-filter-from" class="form-control" title="Desde">
+              <input type="date" id="maint-filter-to" class="form-control" title="Hasta">
+              <select id="maint-filter-type" class="form-control">
+                <option value="">Todos los servicios</option>
+              </select>
+              <button type="button" class="btn btn-neutral btn-sm" id="btn-maint-filter-clear">Limpiar</button>
+            </div>
+            <p class="filter-count text-muted" id="maint-filter-count"></p>
             
             <div class="table-responsive">
               <table class="data-table" id="table-maint-logs">
@@ -673,6 +739,17 @@
             </form>
           </div>
           
+          <div class="card config-card" id="card-custom-maint">
+            <h2>Tipos de mantención propios</h2>
+            <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 10px;">Además del schedule fijo GL-1000, añade servicios (neumáticos, frenos, etc.) con intervalo en km. Aparecen en el tablero de preventivo y en el formulario.</p>
+            <div id="custom-maint-list"></div>
+            <form id="form-custom-maint" class="table-filters" style="margin-top: 12px;">
+              <input type="text" id="custom-maint-name" class="form-control" placeholder="Nombre (ej. Neumáticos)" required maxlength="60">
+              <input type="number" id="custom-maint-interval" class="form-control" placeholder="Intervalo km" min="100" step="100" required>
+              <button type="submit" class="btn btn-primary btn-sm">Añadir tipo</button>
+            </form>
+          </div>
+          
           <div class="card data-card">
             <h2 data-i18n="settings.backup">Respaldo y Datos</h2>
             <p>El historial se guarda en este navegador. Las fotos de boletas van a IndexedDB para no saturar la bitácora. Un JSON de respaldo incluye ambos: guárdalo en Drive, PC o USB.</p>
@@ -691,6 +768,9 @@
               <button class="btn btn-secondary" id="btn-export-data">
                 <i class="fa-solid fa-file-export"></i> Descargar JSON
               </button>
+              <button type="button" class="btn btn-neutral" id="btn-export-report">
+                <i class="fa-solid fa-file-lines"></i> Resumen HTML / PDF
+              </button>
               <button type="button" class="btn btn-primary" id="btn-share-backup" style="display: none;">
                 <i class="fa-solid fa-share-nodes"></i> Compartir respaldo
               </button>
@@ -702,14 +782,14 @@
             
             <div style="margin-top: 20px;">
               <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 5px; color: var(--accent-gold);">Viajes Beeline (GPX)</h3>
-              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">No es un GPS: solo toma km y fecha del archivo. En Beeline abre el viaje → Opciones → <strong>Share/download</strong> → ruta <strong>recorrida (ridden)</strong>. Si hay una carga el mismo día (o al día siguiente), se liga sola para comparar km GPS vs odómetro.</p>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">En el celular: Beeline → viaje → Share/download → ruta <strong>recorrida (ridden)</strong> → Compartir con GoldwingGas, o elige el .gpx. También hay un recuadro en la pestaña Bencina.</p>
               <div class="backup-actions">
                 <div class="file-upload-btn btn btn-neutral btn-sm">
                   <i class="fa-solid fa-route"></i> Importar GPX
-                  <input type="file" id="input-import-gpx" accept=".gpx,application/gpx+xml" multiple>
+                  <input type="file" id="input-import-gpx" accept=".gpx,application/gpx+xml,application/xml,text/xml" multiple>
                 </div>
               </div>
-              <div id="rides-list"></div>
+              <div class="rides-list" id="rides-list"></div>
             </div>
             
             <div style="margin-top: 20px;">
@@ -1037,6 +1117,8 @@
   
   <!-- JS -->
   <script src="js/i18n.js"></script>
+  <script src="js/ocr-enhance.js"></script>
+  <script src="js/report.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
