@@ -46,7 +46,7 @@ En `bootApp()` (`app.js`, al `DOMContentLoaded`):
 
 | `data-tab` / `id` | Contenido principal |
 |-------------------|---------------------|
-| `tab-dashboard` | Gauges, luces de servicio, stats, accesos rápidos |
+| `tab-dashboard` | Gauges, luces de servicio, stats, gráficos extra, accesos rápidos |
 | `tab-fuel` | Chart, aditivos, tabla de cargas |
 | `tab-maintenance` | Schedules, shelter guide, tabla de servicios |
 | `tab-panas` | Guía de panas, altitud, bujías |
@@ -123,6 +123,7 @@ Detalles de columnas y schema: [DATA_MODEL.md](DATA_MODEL.md).
 | `sw.js` | Cache del shell local; CDNs network-first; aviso de actualización |
 | `assets/icons/*` | Iconos 192/512 + maskable + favicon + apple-touch |
 | `initPwaInstall()` / `initServiceWorker()` en `app.js` | Banner de instalación, `beforeinstallprompt`, hints iOS/escritorio |
+| `share_target` + `file_handlers` | Recibe GPX compartidos desde Beeline (PWA instalada) |
 
 Rutas relativas (`./`) para que funcione bajo `https://…github.io/GoldwingGas/`.
 

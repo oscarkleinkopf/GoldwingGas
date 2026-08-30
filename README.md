@@ -51,6 +51,13 @@ Los datos siguen en el dispositivo (`localStorage` + IndexedDB). Descarga un res
 
 Tras un deploy nuevo, la app instalada avisa cuando hay actualización y se recarga vía service worker.
 
+### Importar viajes Beeline desde el celular (Xiaomi / Android)
+
+1. Instala GoldwingGas como app (Chrome → Añadir a pantalla de inicio).
+2. En **Beeline** abre el viaje → **Share / download** → ruta **recorrida (ridden)** en GPX.
+3. **Compartir** → elige **GoldwingGas**, **o** guarda el archivo y en la pestaña **Bencina** toca **Elegir GPX de Beeline**.
+4. Si hay una carga el mismo día, se liga sola para comparar km GPS vs odómetro.
+
 > Para OCR y cámaras, preferible servir por HTTP(S) (GitHub Pages o un servidor local). Abrir el archivo como `file://` puede limitar algunas APIs del navegador.
 
 ### Servidor local rápido
@@ -73,6 +80,9 @@ Luego abre `http://localhost:8080`.
 GoldwingGas/
 ├── index.html              # UI: tabs, modales, formularios
 ├── app.js                  # Estado, cálculos, OCR, importadores, PWA install
+├── js/i18n.js              # Textos ES/EN
+├── js/ocr-enhance.js       # Preprocesado OCR y patrones de boletas
+├── js/report.js            # Resumen HTML/PDF
 ├── style.css               # Tema vintage (variables CSS)
 ├── manifest.webmanifest    # Metadatos PWA / icono de instalación
 ├── netlify.toml            # Hosting estático en Netlify (sin build)

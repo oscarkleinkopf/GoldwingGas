@@ -307,7 +307,8 @@ body {
   }
 }
 
-.gauges-card {
+.gauges-card,
+.extra-charts-card {
   grid-column: 1 / -1;
 }
 
@@ -1733,6 +1734,75 @@ hr {
   display: block;
   margin-top: 3px;
   font-size: 0.75rem;
+}
+
+.table-filters {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.filter-count {
+  font-size: 0.75rem;
+  margin: 0 0 6px;
+}
+
+.chart-subtitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.extra-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.extra-chart-full {
+  grid-column: 1 / -1;
+}
+
+.extra-chart-wrap {
+  height: 180px;
+  position: relative;
+}
+
+.beeline-steps {
+  margin: 0 0 10px 18px;
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.beeline-steps li {
+  margin-bottom: 4px;
+}
+
+.custom-maint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .table-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+  .extra-charts-grid {
+    grid-template-columns: 1fr;
+  }
+  .extra-chart-full {
+    grid-column: auto;
+  }
 }
 
 

@@ -86,6 +86,7 @@ if (state.settings.nuevoCampo === undefined) {
 - Parser: `parseGpxText` / `importParsedRide`. No guardar la polilínea.
 - Probar un GPX `ridden` real: km > 0, fecha, ligue a carga del mismo día, duplicado al reimportar.
 - En la tabla de bencina debe aparecer `GPS xx km · yy km/L` si está ligado.
+- En el celular (Xiaomi / Chrome): Beeline → viaje → Share/download → ridden GPX → **Compartir → GoldwingGas** (PWA instalada) o elegir el archivo en la pestaña Bencina.
 
 ## Debugging útil
 
