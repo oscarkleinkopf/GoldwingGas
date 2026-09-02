@@ -141,6 +141,9 @@
               <i class="fa-solid fa-file-export"></i> <span data-i18n="backup.download">Descargar respaldo</span>
             </button>
             <button type="button" class="btn btn-neutral btn-sm" id="btn-backup-later" data-i18n="backup.later">Más tarde</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-backup-drive">
+              <i class="fa-brands fa-google-drive"></i> Google Drive
+            </button>
           </div>
         </div>
         <div class="dashboard-grid">
@@ -785,6 +788,41 @@
                 <input type="file" id="input-import-data" accept=".json">
               </div>
             </div>
+
+            <div class="drive-backup" id="drive-backup-status">
+              <h3><i class="fa-brands fa-google-drive"></i> Respaldo en Google Drive</h3>
+              <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 10px;">Entras con tu cuenta Google y la app deja un JSON en una carpeta <strong>GoldwingGas</strong> de tu Drive. Así no tienes que pasar el archivo a mano entre teléfonos. Solo ve archivos que crea esta app.</p>
+              <div class="backup-status-row">
+                <span>Cuenta</span>
+                <strong id="drive-account-label">Sin sesión de Google</strong>
+              </div>
+              <div class="backup-status-row">
+                <span>Último respaldo en Drive</span>
+                <strong id="drive-last-label">Nunca</strong>
+              </div>
+              <details class="drive-setup">
+                <summary>Client ID de Google (una vez, quien publica el sitio)</summary>
+                <p class="text-muted" style="font-size: 0.78rem; margin: 8px 0;">Crea un ID de cliente tipo <strong>Aplicación web</strong> en Google Cloud, habilita Drive API y añade como origen tu URL de Netlify y <code>http://localhost:8080</code>. Guía: <code>docs/GOOGLE_DRIVE.md</code>.</p>
+                <div class="table-filters" style="grid-template-columns: 1fr auto;">
+                  <input type="text" id="settings-google-client-id" class="form-control" placeholder="….apps.googleusercontent.com" autocomplete="off">
+                  <button type="button" class="btn btn-neutral btn-sm" id="btn-save-google-client">Guardar ID</button>
+                </div>
+              </details>
+              <div class="backup-actions" style="margin-top: 12px;">
+                <button type="button" class="btn btn-primary" id="btn-drive-connect" data-drive-guest>
+                  <i class="fa-brands fa-google"></i> Entrar con Google
+                </button>
+                <button type="button" class="btn btn-neutral" id="btn-drive-disconnect" data-drive-authed hidden>
+                  Cerrar sesión
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-drive-upload">
+                  <i class="fa-solid fa-cloud-arrow-up"></i> Subir respaldo
+                </button>
+                <button type="button" class="btn btn-neutral" id="btn-drive-restore">
+                  <i class="fa-solid fa-cloud-arrow-down"></i> Restaurar desde Drive
+                </button>
+              </div>
+            </div>
             
             <div style="margin-top: 20px;">
               <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 5px; color: var(--accent-gold);">Viajes Beeline (GPX)</h3>
@@ -1152,9 +1190,12 @@
   </div>
   
   <!-- JS -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="js/i18n.js"></script>
   <script src="js/ocr-enhance.js"></script>
   <script src="js/report.js"></script>
+  <script src="js/google-config.js"></script>
+  <script src="js/drive-backup.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -16,7 +16,7 @@ Aplicación web (SPA) para dueños de la **Honda Goldwing GL-1000 (1975–1979)*
 | **Guía de panas** | Problemas clásicos del boxer + diagnóstico de bujías + ajuste por altitud |
 | **Ajustes** | Año/odómetro/moneda, backup JSON, CSV, **GPX Beeline**, importación masiva |
 
-Datos **100 % locales**. Historial en `localStorage`; fotos de boletas en IndexedDB. El OCR corre en el navegador con Tesseract.js; no se envían fotos a un servidor. En **Ajustes** descarga un JSON de respaldo (incluye fotos) y guárdalo fuera del teléfono.
+Datos **100 % locales**. Historial en `localStorage`; fotos de boletas en IndexedDB. El OCR corre en el navegador con Tesseract.js. En **Ajustes** puedes descargar un JSON o, si configuras un Client ID de Google, **entrar con Google** y subir/restaurar el mismo JSON en una carpeta `GoldwingGas` de tu Drive (alcance `drive.file`, solo archivos de esta app). Guía: [docs/GOOGLE_DRIVE.md](docs/GOOGLE_DRIVE.md).
 
 ### Intervalos de servicio (km)
 
@@ -83,6 +83,8 @@ GoldwingGas/
 ├── js/i18n.js              # Textos ES/EN
 ├── js/ocr-enhance.js       # Preprocesado OCR y patrones de boletas
 ├── js/report.js            # Resumen HTML/PDF
+├── js/google-config.js     # Client ID OAuth (opcional)
+├── js/drive-backup.js      # Respaldo Google Drive
 ├── style.css               # Tema vintage (variables CSS)
 ├── manifest.webmanifest    # Metadatos PWA / icono de instalación
 ├── netlify.toml            # Hosting estático en Netlify (sin build)
@@ -101,6 +103,7 @@ GoldwingGas/
     ├── DEVELOPMENT.md
     ├── DATA_MODEL.md
     ├── NETLIFY.md
+    ├── GOOGLE_DRIVE.md
     └── ROADMAP.md
 ```
 

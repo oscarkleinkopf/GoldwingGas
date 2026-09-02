@@ -38,6 +38,10 @@ La primera vez pregunta si creas un sitio nuevo.
 - `sw.js` se sirve con `Cache-Control: no-cache` para que las actualizaciones lleguen.
 - Instalar: botón **Instalar app** en el encabezado (no hace falta el menú ⋮ de Chrome). Si el enlace abre a pantalla completa, ese botón abre Chrome con barra de direcciones.
 
+## Google Drive (respaldo online)
+
+Tras el primer deploy, añade el origen `https://TU-SITIO.netlify.app` al Client ID OAuth (ver [GOOGLE_DRIVE.md](GOOGLE_DRIVE.md)). Sin ese origen el login de Google falla.
+
 ## Datos locales
 
 `localStorage` e IndexedDB son **por origen**. Al pasar de GitHub Pages (`…github.io/GoldwingGas/`) a Netlify (`…netlify.app`) es otro origen: exporta el JSON en Ajustes **antes** de cambiar de URL e impórtalo en el sitio nuevo.
