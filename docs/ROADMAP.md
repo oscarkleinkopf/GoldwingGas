@@ -20,6 +20,7 @@ Prioridades sugeridas para evolucionar GoldwingGas sin abandonar el modelo SPA l
 - [x] **Gráficos adicionales** — costo acumulado, histograma L/100km, km entre servicios.
 - [x] **Modo “solo lectura / compartir”** — exportar un resumen HTML/PDF de la bitácora.
 - [x] **Beeline desde el celular** — tarjeta en Bencina, share target PWA y abrir .gpx.
+- [x] **Respaldo Google Drive** — OAuth opcional (`drive.file`); carpeta `GoldwingGas` en la cuenta de quien inicia sesión.
 
 ## Estructura de código (cuando `app.js` pese demasiado)
 

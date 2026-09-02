@@ -14,7 +14,11 @@ let state = {
     currency: '$',
     lastBackupAt: '',
     lang: 'es',
-    customMaintTypes: []
+    customMaintTypes: [],
+    googleClientId: '',
+    lastDriveBackupAt: '',
+    driveFolderId: '',
+    driveFileId: ''
   }
 };
 
@@ -71,6 +75,7 @@ async function bootApp() {
   initServiceWorker();
   initPwaInstall();
   initBackupUi();
+  if (typeof initDriveBackupUi === 'function') initDriveBackupUi();
   initTableFilters();
   initCustomMaintTypes();
   
@@ -231,7 +236,7 @@ async function attachPhotoToLog(log, imageData) {
 
 function ensureSettingsDefaults() {
   if (!state.settings) {
-    state.settings = { modelYear: '1978', initialOdo: 45000, currency: '$', lastBackupAt: '', lang: 'es', customMaintTypes: [] };
+    state.settings = { modelYear: '1978', initialOdo: 45000, currency: '$', lastBackupAt: '', lang: 'es', customMaintTypes: [], googleClientId: '', lastDriveBackupAt: '', driveFolderId: '', driveFileId: '' };
   }
   if (state.settings.lastBackupAt === undefined) {
     state.settings.lastBackupAt = '';
@@ -242,6 +247,10 @@ function ensureSettingsDefaults() {
   if (!Array.isArray(state.settings.customMaintTypes)) {
     state.settings.customMaintTypes = [];
   }
+  if (state.settings.googleClientId === undefined) state.settings.googleClientId = '';
+  if (state.settings.lastDriveBackupAt === undefined) state.settings.lastDriveBackupAt = '';
+  if (state.settings.driveFolderId === undefined) state.settings.driveFolderId = '';
+  if (state.settings.driveFileId === undefined) state.settings.driveFileId = '';
   if (!state.shelterChecks) {
     state.shelterChecks = { airFilter: '', fuses: '', radiator: '' };
   }
@@ -478,7 +487,11 @@ function seedState() {
     currency: '$',
     lastBackupAt: '',
     lang: 'es',
-    customMaintTypes: []
+    customMaintTypes: [],
+    googleClientId: (state.settings && state.settings.googleClientId) || '',
+    lastDriveBackupAt: '',
+    driveFolderId: '',
+    driveFileId: ''
   };
   saveData();
 }
@@ -3607,6 +3620,14 @@ async function downloadBackupFile() {
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     downloadBlob(blob, backupFilename());
     markBackupDone();
+    if (typeof readStoredDriveToken === 'function' && readStoredDriveToken() && typeof uploadBackupToDrive === 'function') {
+      try {
+        await uploadBackupToDrive(payload);
+        if (typeof refreshDriveUi === 'function') refreshDriveUi(false);
+      } catch (err) {
+        console.warn('No se pudo copiar el respaldo a Drive', err);
+      }
+    }
   } catch (err) {
     alert('No se pudo generar el respaldo: ' + err.message);
   }
