@@ -22,7 +22,11 @@ Fotos de boletas/notas: IndexedDB **`goldwing_gas_photos`**, store `photos` (cla
     currency: string,    // símbolo, p. ej. '$'
     lastBackupAt: string, // ISO datetime del último JSON descargado/compartido, o ''
     lang: string,         // 'es' | 'en' — idioma de la interfaz
-    customMaintTypes: { name: string, interval: number }[]
+    customMaintTypes: { name: string, interval: number }[],
+    googleClientId: string,     // OAuth web client, o ''
+    lastDriveBackupAt: string,  // ISO del último upload a Drive, o ''
+    driveFolderId: string,      // carpeta GoldwingGas creada por la app
+    driveFileId: string         // goldwing_gas_backup.json en Drive
   }
 }
 ```
@@ -95,6 +99,7 @@ En `loadData()`:
 - Si falta `settings.lastBackupAt`, queda `''`.
 - Si falta `rides`, se inicializa `[]`.
 - Si falta `settings.customMaintTypes`, queda `[]`.
+- Si faltan `googleClientId` / `lastDriveBackupAt` / `driveFolderId` / `driveFileId`, quedan `''`.
 - Cada log sin `id` recibe un UUID.
 - Si `log.image` es un data URL, se mueve a IndexedDB (`photoId = id`) y se borra del JSON de `localStorage`.
 

@@ -16,6 +16,7 @@ SPA **vanilla** (HTML/CSS/JS) para tracking de combustible y mantenimiento de Ho
 | `manifest.webmanifest` / `sw.js` | App instalable (Android sin Play) |
 | `assets/` | Arte de dedicatoria + iconos |
 | `docs/*` | Arquitectura, datos, roadmap |
+| `js/drive-backup.js` | Respaldo opcional Google Drive |
 
 ## Reglas al cambiar código
 

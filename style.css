@@ -883,6 +883,36 @@ body {
   background: rgba(255, 179, 0, 0.08);
 }
 
+.drive-backup {
+  margin-top: 18px;
+  padding: 14px 14px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: rgba(29, 161, 242, 0.05);
+}
+
+.drive-backup h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin-bottom: 6px;
+}
+
+.drive-backup.is-connected {
+  border-color: rgba(23, 191, 99, 0.4);
+  background: rgba(23, 191, 99, 0.06);
+}
+
+.drive-setup {
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+
+.drive-setup summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
 .backup-status-row {
   display: flex;
   justify-content: space-between;

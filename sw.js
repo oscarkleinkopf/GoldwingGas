@@ -1,5 +1,5 @@
 /* GoldwingGas — service worker (shell cache for offline / installable PWA) */
-const CACHE_VERSION = 'goldwinggas-v8';
+const CACHE_VERSION = 'goldwinggas-v9';
 const SHARE_INBOX = 'goldwinggas-share-inbox';
 const SHELL_ASSETS = [
   './',
@@ -9,6 +9,8 @@ const SHELL_ASSETS = [
   './js/i18n.js',
   './js/ocr-enhance.js',
   './js/report.js',
+  './js/google-config.js',
+  './js/drive-backup.js',
   './manifest.webmanifest',
   './assets/goldwing-art.jpg',
   './assets/goldwing-art-card.jpg',

@@ -29,6 +29,7 @@ Checklist reproducible antes de merge o deploy. Servir con `python3 -m http.serv
 - [ ] Export JSON descarga archivo con `photos` si hay boletas.
 - [ ] Borrar `localStorage` + IndexedDB → import JSON → fotos visibles de nuevo.
 - [ ] Banner de respaldo aparece sin `lastBackupAt`; desaparece tras descargar JSON.
+- [ ] (Si hay Client ID) Entrar con Google → Subir respaldo → en otro perfil Restaurar desde Drive.
 
 ## CSV
 

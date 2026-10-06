@@ -39,7 +39,7 @@ En `bootApp()` (`app.js`, al `DOMContentLoaded`):
 5. `initOcrEngine()` — dropzones OCR bencina/mantención.
 6. `initBatchImporter()` — importación masiva.
 7. Herramientas: `initShelterGuide`, `initFuelAdditiveCalc`, `initAltitudeCalc`, `initSparkPlugDiag`.
-8. `initPwaInstall` / `initBackupUi`.
+8. `initPwaInstall` / `initBackupUi` / `initDriveBackupUi`.
 9. `updateUI()` — pinta tablero, tablas, luces y estado de respaldo.
 
 ## Tabs (UI)
