@@ -155,4 +155,6 @@ Dedicado a Victor Kleinkopf (Z.L.).
 
 ## Licencia
 
-Uso personal / comunitario del proyecto. Si publicas un fork, mantén la atribución al repositorio original y a la dedicatoria.
+Licencia [Apache 2.0](LICENSE). Copyright (c) 2026 Osias Kleinkopf.
+
+Si publicas un fork o redistribuyes el proyecto, conserva el archivo [NOTICE](NOTICE), que incluye la atribución al repositorio original y la dedicatoria a Victor Kleinkopf (Z.L.).
