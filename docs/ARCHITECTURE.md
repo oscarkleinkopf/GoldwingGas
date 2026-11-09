@@ -8,7 +8,7 @@ GoldwingGas es una **Single Page Application** sin backend ni build step.
 ┌─────────────────────────────────────────────────────────┐
 │  index.html                                             │
 │  · Estructura de tabs, modales, formularios             │
-│  · Carga CDNs (Chart.js, Tesseract.js, Font Awesome)    │
+│  · CDNs fijados + SRI (Chart.js 4.6.1, Tesseract.js 5.1.1, FA 6.4.0) │
 └────────────┬──────────────────────────────▲─────────────┘
              │ DOM / eventos                │ updateUI()
              ▼                              │
@@ -129,4 +129,6 @@ Rutas relativas (`./`) para que funcione bajo `https://…github.io/GoldwingGas/
 
 ## Deploy
 
-Estático en **Netlify** (`netlify.toml`, publish `.`) o GitHub Pages (`main` + `.nojekyll`). No hay CI ni tests automatizados todavía (ver ROADMAP). Guía: [NETLIFY.md](NETLIFY.md).
+Estático en **Netlify** (`netlify.toml`, publish `.`) o GitHub Pages (`main` + `.nojekyll`). Tests de escape/CDN: `node --test tests/*.test.js`. Guía: [NETLIFY.md](NETLIFY.md).
+
+CSP en `index.html` (Pages) y `netlify.toml`: permite jsDelivr, Google Fonts, cdnjs, tessdata y `'wasm-unsafe-eval'` para OCR. Los `onclick` inline siguen exigiendo `'unsafe-inline'` en `script-src`. `frame-ancestors` solo va en `netlify.toml` (los navegadores ignoran esa directiva en `<meta>`).

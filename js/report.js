@@ -3,7 +3,7 @@
 function buildReportHtml() {
   const stats = typeof calculateStats === 'function' ? calculateStats() : {};
   const loc = typeof getDateLocale === 'function' ? getDateLocale() : 'es-ES';
-  const currency = (state.settings && state.settings.currency) || '$';
+  const currency = escapeHtml((state.settings && state.settings.currency) || '$');
   const year = (state.settings && state.settings.modelYear) || '';
   const fmtDate = (iso) => {
     if (!iso) return '—';

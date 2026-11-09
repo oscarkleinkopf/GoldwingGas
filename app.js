@@ -502,16 +502,6 @@ function notifyUser(message, type) {
   alert(message);
 }
 
-function escapeHtml(str) {
-  return String(str || '').replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  }[ch]));
-}
-
 function todayIsoDate() {
   return new Date().toISOString().split('T')[0];
 }
@@ -782,7 +772,7 @@ function populateFuelRideSelect(currentFuelId, selectedRideId) {
     const dur = ride.durationMin ? ` · ${ride.durationMin} min` : '';
     const label = `${ride.date || 's/fecha'} — ${ride.distanceKm.toFixed(1)} km${dur} — ${ride.name}`;
     const sel = ride.id === current ? ' selected' : '';
-    options.push(`<option value="${ride.id}"${sel}>${escapeHtml(label)}</option>`);
+    options.push(`<option value="${escapeHtml(ride.id)}"${sel}>${escapeHtml(label)}</option>`);
   });
   select.innerHTML = options.join('');
 }
@@ -804,7 +794,7 @@ function renderRidesList() {
         <strong>${escapeHtml(ride.name)}</strong>
         <span class="text-muted">${ride.date || 's/fecha'} · ${ride.distanceKm.toFixed(1)} km${dur}<br>${escapeHtml(link)}</span>
       </div>
-      <button type="button" class="btn-icon btn-icon-danger" onclick="deleteRide('${ride.id}')" title="Quitar viaje"><i class="fa-solid fa-trash-can"></i></button>
+      <button type="button" class="btn-icon btn-icon-danger" onclick="deleteRide(${jsStringAttr(ride.id)})" title="Quitar viaje"><i class="fa-solid fa-trash-can"></i></button>
     </div>`;
     }).join('');
   lists.forEach((list) => { list.innerHTML = html; });
@@ -1180,7 +1170,7 @@ function updateMaintenanceStatus(currentOdo) {
     card.className = `maint-schedule-card border-${statusClass}`;
     card.innerHTML = `
       <div class="maint-sched-header">
-        <span class="maint-title">${type}</span>
+        <span class="maint-title">${escapeHtml(type)}</span>
         <span class="tag-badge ${statusClass}">${labelText}</span>
       </div>
       <div class="maint-interval">Intervalo: cada ${sched.interval.toLocaleString()} km</div>
@@ -1256,14 +1246,16 @@ function renderFuelLogsTable() {
       : '<span class="text-muted">-</span>';
     
     const tr = document.createElement('tr');
+    const currency = escapeHtml(state.settings.currency);
+    const typeClass = cssToken(log.type);
     tr.innerHTML = `
       <td>${dateFormatted}</td>
       <td><strong>${log.odometer.toLocaleString()} km</strong></td>
       <td>${log.liters.toFixed(2)} L</td>
-      <td>${state.settings.currency}${log.cost.toLocaleString()}</td>
+      <td>${currency}${log.cost.toLocaleString()}</td>
       <td>${efficiencyDisplay}${gpsNote}</td>
       <td>${hasPhoto}</td>
-      <td><span class="tag-badge ${log.type.toLowerCase()}">${log.type}</span>${log.station ? '<br><small class="text-muted">' + log.station + '</small>' : ''}${log.notes ? '<p class="text-muted" style="font-size: 0.75rem; margin-top:2px;">' + log.notes + '</p>' : ''}</td>
+      <td><span class="tag-badge ${typeClass}">${escapeHtml(log.type)}</span>${log.station ? '<br><small class="text-muted">' + escapeHtml(log.station) + '</small>' : ''}${log.notes ? '<p class="text-muted" style="font-size: 0.75rem; margin-top:2px;">' + escapeHtml(log.notes) + '</p>' : ''}</td>
       <td>
         <button class="btn-icon" onclick="editFuelLog(${originalIndex})" title="${typeof t === 'function' ? t('common.edit') : 'Editar'}"><i class="fa-solid fa-pen-to-square"></i></button>
         <button class="btn-icon btn-icon-danger" onclick="deleteFuelLog(${originalIndex})" title="${typeof t === 'function' ? t('common.delete') : 'Eliminar'}"><i class="fa-solid fa-trash-can"></i></button>
@@ -1306,7 +1298,7 @@ function renderMaintLogsTable() {
   displayMaint.forEach(log => {
     const originalIndex = state.maintLogs.indexOf(log);
     const dateFormatted = new Date(log.date).toLocaleDateString(dateLocale, { timeZone: 'UTC' });
-    const costDisplay = log.cost ? `${state.settings.currency}${parseInt(log.cost).toLocaleString()}` : '<span class="text-muted">-</span>';
+    const costDisplay = log.cost ? `${escapeHtml(state.settings.currency)}${parseInt(log.cost).toLocaleString()}` : '<span class="text-muted">-</span>';
     const hasPhoto = logHasPhoto(log)
       ? `<button class="ticket-attachment-btn" onclick="viewMaintPhoto(${originalIndex})"><i class="fa-solid fa-receipt"></i> ${typeof t === 'function' ? t('table.maint.viewNote') : 'Ver nota'}</button>`
       : '<span class="text-muted">-</span>';
@@ -1314,10 +1306,10 @@ function renderMaintLogsTable() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${dateFormatted}</td>
-      <td><strong>${log.type}</strong></td>
+      <td><strong>${escapeHtml(log.type)}</strong></td>
       <td><strong>${log.odometer.toLocaleString()} km</strong></td>
       <td>${costDisplay}</td>
-      <td><p style="margin: 0; max-width: 250px; font-size: 0.85rem;">${log.notes || '-'}</p></td>
+      <td><p style="margin: 0; max-width: 250px; font-size: 0.85rem;">${escapeHtml(log.notes || '-')}</p></td>
       <td>${hasPhoto}</td>
       <td>
         <button class="btn-icon" onclick="editMaintLog(${originalIndex})" title="${typeof t === 'function' ? t('common.edit') : 'Editar'}"><i class="fa-solid fa-pen-to-square"></i></button>
@@ -1993,6 +1985,17 @@ function initOcrEngine() {
   }
 }
 
+// Pin Tesseract worker/core/lang to the same 5.1.1 artifacts as index.html (not @5 floating tags).
+const TESSERACT_CDN_OPTIONS = {
+  workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+  corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
+  langPath: 'https://tessdata.projectnaptha.com/4.0.0'
+};
+
+function tesseractRecognizeOptions(logger) {
+  return Object.assign({}, TESSERACT_CDN_OPTIONS, logger ? { logger } : {});
+}
+
 // Convert uploaded file to base64 & run Tesseract.js OCR engine
 function handleOcrImage(file) {
   const reader = new FileReader();
@@ -2023,13 +2026,11 @@ function handleOcrImage(file) {
     Tesseract.recognize(
       base64Data,
       'spa', // Spanish model
-      { 
-        logger: m => {
-          if (m.status === 'recognizing') {
-            statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo boleta: ${Math.round(m.progress * 100)}%`;
-          }
+      tesseractRecognizeOptions((m) => {
+        if (m.status === 'recognizing') {
+          statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo boleta: ${Math.round(m.progress * 100)}%`;
         }
-      }
+      })
     ).then(({ data: { text } }) => {
       // Hide scanner overlays
       laser.style.display = 'none';
@@ -2154,7 +2155,7 @@ function parseOcrResults(text) {
   const stationGuess = typeof detectFuelStation === 'function' ? detectFuelStation(normalizedText) : '';
   if (stationGuess && document.getElementById('fuel-station')) {
     document.getElementById('fuel-station').value = stationGuess;
-    alertContent.push(`<strong>Estación:</strong> ${stationGuess}`);
+    alertContent.push(`<strong>Estación:</strong> ${escapeHtml(stationGuess)}`);
   }
   
   alertResult.style.display = 'flex';
@@ -2194,13 +2195,11 @@ function handleMaintOcrImage(file) {
     Tesseract.recognize(
       base64Data,
       'spa', // Spanish model
-      { 
-        logger: m => {
-          if (m.status === 'recognizing') {
-            statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo nota: ${Math.round(m.progress * 100)}%`;
-          }
+      tesseractRecognizeOptions((m) => {
+        if (m.status === 'recognizing') {
+          statusOverlay.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo nota: ${Math.round(m.progress * 100)}%`;
         }
-      }
+      })
     ).then(({ data: { text } }) => {
       // Hide scanner overlays
       laser.style.display = 'none';
@@ -2601,7 +2600,7 @@ async function processBatchFiles(files) {
     statusDiv.style.borderRadius = '4px';
     statusDiv.style.backgroundColor = 'rgba(255,255,255,0.03)';
     statusDiv.style.borderLeft = '3px solid var(--text-muted)';
-    statusDiv.innerHTML = `<strong>${file.name}</strong>: <span class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Cargando...</span>`;
+    statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span class="text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Cargando...</span>`;
     resultsList.appendChild(statusDiv);
     resultsList.scrollTop = resultsList.scrollHeight; // Scroll to bottom
     
@@ -2611,7 +2610,7 @@ async function processBatchFiles(files) {
         const csvText = await readFileAsText(file);
         const report = parseAndMergeCSVData(csvText);
         statusDiv.style.borderLeftColor = 'var(--accent-green)';
-        statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-green);">Éxito.</span> Se agregaron ${report.imported} registros (omitidos: ${report.duplicates} duplicados, ${report.errors} errores).`;
+        statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span style="color: var(--accent-green);">Éxito.</span> Se agregaron ${report.imported} registros (omitidos: ${report.duplicates} duplicados, ${report.errors} errores).`;
         successCount++;
       } else if (file.name.toLowerCase().endsWith('.gpx')) {
         const gpxText = await readFileAsText(file);
@@ -2619,21 +2618,21 @@ async function processBatchFiles(files) {
         const result = importParsedRide(parsed, 'beeline');
         if (result.status === 'duplicate') {
           statusDiv.style.borderLeftColor = 'var(--accent-gold)';
-          statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-gold);">Omitido.</span> Viaje duplicado (${parsed.distanceKm} km).`;
+          statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span style="color: var(--accent-gold);">Omitido.</span> Viaje duplicado (${parsed.distanceKm} km).`;
         } else {
           statusDiv.style.borderLeftColor = 'var(--accent-green)';
           const linked = result.linked ? ' ligado a una carga' : ' sin carga ese día';
-          statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-green);">[Beeline]</span> ${parsed.distanceKm} km${linked}.`;
+          statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span style="color: var(--accent-green);">[Beeline]</span> ${parsed.distanceKm} km${linked}.`;
           successCount++;
         }
       } else if (file.type.startsWith('image/')) {
         // Handle Image OCR
         const base64 = await readFileAsDataURL(file);
         
-        statusDiv.innerHTML = `<strong>${file.name}</strong>: <span class="text-muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Ejecutando OCR local...</span>`;
+        statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span class="text-muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Ejecutando OCR local...</span>`;
         
         const ocrText = await runTesseractOCR(base64, (progress) => {
-          statusDiv.innerHTML = `<strong>${file.name}</strong>: <span class="text-muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo: ${Math.round(progress * 100)}%</span>`;
+          statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span class="text-muted"><i class="fa-solid fa-circle-notch fa-spin"></i> Leyendo: ${Math.round(progress * 100)}%</span>`;
         });
         
         // Classify image based on text keywords
@@ -2659,7 +2658,7 @@ async function processBatchFiles(files) {
           state.maintLogs.push(maintLog);
           
           statusDiv.style.borderLeftColor = 'var(--accent-blue)';
-          statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-blue);">[Mantenimiento]</span> ${parsed.type} - ${parsed.date ? formatDateString(parsed.date) : 'Sin fecha'} - ${parsed.odometer ? parsed.odometer.toLocaleString() + ' km' : 'Sin km'} - $${parsed.cost ? parsed.cost.toLocaleString() : '0'}`;
+          statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span style="color: var(--accent-blue);">[Mantenimiento]</span> ${escapeHtml(parsed.type)} - ${parsed.date ? formatDateString(parsed.date) : 'Sin fecha'} - ${parsed.odometer ? parsed.odometer.toLocaleString() + ' km' : 'Sin km'} - $${parsed.cost ? parsed.cost.toLocaleString() : '0'}`;
         } else {
           // Parse as Fuel receipt
           const parsed = extractFuelOcrProperties(ocrText);
@@ -2668,7 +2667,7 @@ async function processBatchFiles(files) {
           const existingOdos = new Set(state.fuelLogs.map(l => parseInt(l.odometer)));
           if (parsed.odometer && existingOdos.has(parsed.odometer)) {
             statusDiv.style.borderLeftColor = 'var(--accent-gold)';
-            statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-gold);">Omitido.</span> Boleta de bencina duplicada en odómetro (${parsed.odometer.toLocaleString()} km).`;
+            statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span style="color: var(--accent-gold);">Omitido.</span> Boleta de bencina duplicada en odómetro (${parsed.odometer.toLocaleString()} km).`;
           } else {
             const fuelLog = {
               id: createLogId(),
@@ -2686,18 +2685,18 @@ async function processBatchFiles(files) {
             state.fuelLogs.push(fuelLog);
             
             statusDiv.style.borderLeftColor = 'var(--accent-green)';
-            statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-green);">[Bencina]</span> ${parsed.date ? formatDateString(parsed.date) : 'Hoy'} - ${parsed.liters ? parsed.liters + ' L' : '15 L'} - ${parsed.odometer ? parsed.odometer.toLocaleString() + ' km' : 'Sin km'} - $${parsed.cost ? parsed.cost.toLocaleString() : '0'}`;
+            statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span style="color: var(--accent-green);">[Bencina]</span> ${parsed.date ? formatDateString(parsed.date) : 'Hoy'} - ${parsed.liters ? parsed.liters + ' L' : '15 L'} - ${parsed.odometer ? parsed.odometer.toLocaleString() + ' km' : 'Sin km'} - $${parsed.cost ? parsed.cost.toLocaleString() : '0'}`;
           }
         }
         successCount++;
       } else {
         statusDiv.style.borderLeftColor = 'var(--accent-red)';
-        statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-red);">Omitido.</span> Formato no soportado.`;
+        statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span style="color: var(--accent-red);">Omitido.</span> Formato no soportado.`;
       }
     } catch (err) {
       console.error(err);
       statusDiv.style.borderLeftColor = 'var(--accent-red)';
-      statusDiv.innerHTML = `<strong>${file.name}</strong>: <span style="color: var(--accent-red);">Error:</span> ${err.message}`;
+      statusDiv.innerHTML = `<strong>${escapeHtml(file.name)}</strong>: <span style="color: var(--accent-red);">Error:</span> ${escapeHtml(err.message)}`;
     }
     
     // Update progress
@@ -2736,13 +2735,11 @@ function runTesseractOCR(base64, progressCallback) {
     Tesseract.recognize(
       base64,
       'spa',
-      {
-        logger: m => {
-          if (m.status === 'recognizing') {
-            progressCallback(m.progress);
-          }
+      tesseractRecognizeOptions((m) => {
+        if (m.status === 'recognizing') {
+          progressCallback(m.progress);
         }
-      }
+      })
     ).then(({ data: { text } }) => {
       resolve(text);
     }).catch(err => {
